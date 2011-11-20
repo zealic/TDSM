@@ -14,6 +14,8 @@ using Terraria_Server.Definitions.Tile;
 
 using Regions.RegionWork;
 using Terraria_Server.Plugins;
+using MySql.Data.MySqlClient;
+using System.Data;
 
 namespace Regions
 {
@@ -45,6 +47,7 @@ namespace Regions
                 return Statics.PluginPath + Path.DirectorySeparatorChar + "Regions";
             }
         }
+
         public static string DataFolder
         {
             get
@@ -54,6 +57,46 @@ namespace Regions
         }
 
         public Properties rProperties { get; set; }
+        #region mysql properties
+
+        PropertiesFile mysql;
+
+        bool mysqlenabled
+        {
+            get { return mysql.getValue("mysql-enabled", false); }
+        }
+
+        string mysqlserver
+        {
+            get { return mysql.getValue("mysql-server", "localhost"); }
+        }
+
+        string mysqldatabase
+        {
+            get { return mysql.getValue("mysql-database", "terraria"); }
+        }
+
+        string mysqluser
+        {
+            get { return mysql.getValue("mysql-user", "terraria"); }
+        }
+
+        string mysqlpassword
+        {
+            get { return mysql.getValue("mysql-userpass", ""); }
+        }
+
+        bool imported
+        {
+            get { return mysql.getValue("regionfiles-imported", false); }
+        }
+
+        string connectionString
+        {
+            get { return "Server=" + mysqlserver + ";" + "Database=" + mysqldatabase + ";" + "User ID=" + mysqluser + ";" + "Password=" + mysqlpassword + ";" + "Pooling=false"; }
+        }
+
+        #endregion
         public RegionManager regionManager { get; set; }
         private bool SelectorPos = true; //false for 1st (mousePoints[0]), true for 2nd
         public Selection selection;
@@ -89,9 +132,51 @@ namespace Regions
                 WorldAlter = HookResult.RECTIFY;
             
             SelectorItem = rProperties.SelectionToolID;
+            #region set up mysql properties
 
-            regionManager = new RegionManager(DataFolder);
+            string pluginFolder = Statics.PluginPath + Path.DirectorySeparatorChar + "mysql";
+            if (!Directory.Exists(pluginFolder))
+            {
+                Directory.CreateDirectory(pluginFolder);
+            }
 
+            mysql = new PropertiesFile(pluginFolder + Path.DirectorySeparatorChar + "mysql.properties");
+            mysql.Load();
+            var dummy1 = mysqlenabled;
+            var dummy2 = mysqlserver;
+            var dummy3 = mysqldatabase;
+            var dummy4 = mysqluser;
+            var dummy5 = mysqlpassword;
+            var dummy6 = imported;
+            mysql.Save(false);
+
+            #endregion
+
+            #region check if mysql table exists
+            if (mysqlenabled)
+            {
+                try
+                {
+                    checkTable(connectionString, "terraria_regions");
+                }
+                catch (MySqlException e)
+                {
+                    if (e.Number == 1042)
+                    {
+                        ProgramLog.Error.Log("[Regions] Could not connect to mysql server. Falling back to using regions files");
+                        mysql.setValue("mysql-enabled", "False");
+                        mysql.Save();
+                    }
+                    else
+                    {
+                        ProgramLog.Error.Log("[Regions] MYSQL ERROR CODE: " + e.Number);
+                        ProgramLog.Error.Log(e.StackTrace);
+                    }
+                }
+            }
+            #endregion
+
+            regionManager = new RegionManager(DataFolder, mysqlenabled, connectionString);
             selection = new Selection();
 
             commands = new Commands();
@@ -167,7 +252,19 @@ namespace Regions
             void OnServerStateChange(ref HookContext ctx, ref HookArgs.ServerStateChange args)
             {
                 if (args.ServerChangeState == ServerState.LOADED)
+                {
+                    //imports all the region files into the mysql table 
+                    //on the first time the plugin is loaded with mysql enabled
+                    if (!imported && mysqlenabled)
+                    {
+                        int numimported = regionManager.import();
+                        mysql.setValue("regionfiles-imported", "True");
+                        mysql.Save(false);
+                        ProgramLog.Plugin.Log("Imported {0} Regions.", numimported);
+                    }
+
                     regionManager.LoadRegions();
+                }
             }
                     
             [Hook(HookOrder.NORMAL)]
@@ -381,5 +478,66 @@ namespace Regions
 
             return region.IsRestrictedForUser(player);
         }
+
+        public void checkTable(string connectionString, string tablename)
+        {
+            bool isTable = false;
+            //mysql- check to see if tables already exist
+            IDbConnection dbcon;
+            dbcon = new MySqlConnection(connectionString);
+            dbcon.Open();
+            IDbCommand dbcmd = dbcon.CreateCommand();
+            string sql =
+            " SHOW tables LIKE '" + tablename + "'";
+            dbcmd.CommandText = sql;
+            IDataReader reader = dbcmd.ExecuteReader();
+            while (reader.Read())
+            {
+                string checkresult = (string)reader["Tables_in_" + mysqldatabase + " (" + tablename + ")"];
+                isTable = true;
+            }
+            ProgramLog.Plugin.Log("[Regions] checkTable " + tablename + ": Found:" + isTable);
+
+            // clean up
+            reader.Close();
+            reader = null;
+            dbcmd.Dispose();
+            dbcmd = null;
+            dbcon.Close();
+            dbcon = null;
+            //end check
+
+            if (!isTable)
+            {
+                //mysql- create table if not found
+                string connectionString2 =
+                "Server=" + mysqlserver + ";" +
+                "Database=" + mysqldatabase + ";" +
+                "User ID=" + mysqluser + ";" +
+                "Password=" + mysqlpassword + ";" +
+                "Pooling=false";
+                IDbConnection dbcon2;
+                dbcon2 = new MySqlConnection(connectionString2);
+                dbcon2.Open();
+                IDbCommand dbcmd2 = dbcon2.CreateCommand();
+                string sql2 = "";
+                if (tablename == "terraria_regions")
+                {
+                    sql2 = " CREATE TABLE " + tablename + " ( Name TEXT NOT NULL , Description TEXT NOT NULL, Point1 TEXT NOT NULL, Point2 TEXT NOT NULL, UserList TEXT NOT NULL, ProjectileList TEXT NOT NULL, Restricted BOOLEAN NOT NULL, RestrictedNPCs BOOLEAN NOT NULL ) ";
+                }
+                dbcmd2.CommandText = sql2;
+                IDataReader reader2 = dbcmd2.ExecuteReader();
+                // clean up
+                reader2.Close();
+                reader2 = null;
+                dbcmd2.Dispose();
+                dbcmd2 = null;
+                dbcon2.Close();
+                dbcon2 = null;
+                ProgramLog.Plugin.Log("[Regions] Table '" + tablename + "' created.");
+                //end create
+            }
+        }
+
     }
 }
