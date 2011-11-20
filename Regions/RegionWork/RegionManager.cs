@@ -101,6 +101,8 @@ namespace Regions.RegionWork
                         dbcmd = null;
                         dbcon.Close();
                         dbcon = null;
+
+                        return true;
                     }
                     else
                     {
