@@ -67,18 +67,8 @@ namespace Regions.RegionWork
                         string regiondesc = region.Description.Replace("'", @"\'");	
                         string point1 = region.Point1.X + "," + region.Point1.Y;
                         string point2 = region.Point2.X + "," + region.Point2.Y;
-                        string userList = "";
-                        foreach(string s in region.UserList)
-                        {
-                            string parsed = s.Replace("'", @"\'");	
-                            userList = userList + parsed + " ";
-                        }
-                        string projectileList = "";
-                        foreach (string s in region.ProjectileList)
-                        {
-                            string parsed = s.Replace("'", @"\'");	
-                            projectileList = projectileList + parsed + " ";
-                        }
+                        string userList = region.UserListToString().Replace("'", @"\'");	
+                        string projectileList = region.ProjectileListToString().Replace("'", @"\'");	
                         string sql = "";
                         IDbConnection dbcon;
                         dbcon = new MySqlConnection(connectionString);
