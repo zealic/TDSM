@@ -293,7 +293,7 @@ namespace Regions.RegionWork
                 region.Point1 = Point1;
 
                 string line2 = (string)reader["Point2"];
-                string[] xy2 = line.Split(',');
+                string[] xy2 = line2.Split(',');
                 float x2, y2;
                 if (!(float.TryParse(xy2[0], out x2) && float.TryParse(xy2[1], out y2)))
                     Point2 = default(Vector2);
@@ -307,6 +307,7 @@ namespace Regions.RegionWork
                 region.ProjectileList = projlist.Split(' ').ToList<String>();
                 region.Restricted = (bool)reader["Restricted"];
                 region.RestrictedNPCs = (bool)reader["RestrictedNPCs"];
+
                 if(region.IsValidRegion())
                     regions.Add(region);
             }
