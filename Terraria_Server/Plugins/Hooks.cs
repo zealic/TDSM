@@ -5,6 +5,7 @@ using Terraria_Server.Misc;
 using Terraria_Server.Definitions;
 using Terraria_Server.Collections;
 using Terraria_Server.Commands;
+using Terraria_Server.Logging;
 
 //
 // TODO: split this file into one per hook with partial HookPoints and HookArgs classes,
@@ -67,6 +68,8 @@ namespace Terraria_Server.Plugins
 		
 		public static readonly HookPoint<HookArgs.PlayerChat>                PlayerChat;
 		public static readonly HookPoint<HookArgs.Command>                   Command;
+		public static readonly HookPoint<HookArgs.WorldGeneration>			 WorldGeneration;
+		public static readonly HookPoint<HookArgs.WorldRequestMessage>		 WorldRequestMessage;
 		
 		static HookPoints ()
 		{
@@ -109,11 +112,19 @@ namespace Terraria_Server.Plugins
 			PlayerTriggeredEvent      = new HookPoint<HookArgs.PlayerTriggeredEvent> ("player-triggered-event");
 			PlayerChat                = new HookPoint<HookArgs.PlayerChat> ("player-chat");
 			Command                   = new HookPoint<HookArgs.Command> ("command");
+			WorldGeneration			  = new HookPoint<HookArgs.WorldGeneration> ("world-generation");
+			WorldRequestMessage		  = new HookPoint<HookArgs.WorldRequestMessage>("world-request-message");
 		}
 	}
 	
 	public static class HookArgs
     {
+		public struct WorldRequestMessage
+		{
+			public int SpawnX { get; set; }
+			public int SpawnY { get; set; }
+		}
+
         public struct UnkownReceivedPacket
         {
             public ClientConnection Conn        { get; set; }
@@ -136,6 +147,8 @@ namespace Terraria_Server.Plugins
             public int          Number5         { get; set; }
         }
 
+		public struct WorldGeneration { }
+
         public struct NewConnection
         {
         }
@@ -143,6 +156,7 @@ namespace Terraria_Server.Plugins
         public struct ConsoleMessageReceived
         {
             public string Message { get; set; }
+			public SendingLogger Logger { get; set; }
         }
 
         public struct ServerStateChange
@@ -263,11 +277,11 @@ namespace Terraria_Server.Plugins
 				{
 					if (c < 32 || c > 126)
 					{
-						Console.Write ((byte) c);
+						//Console.Write ((byte) c);
 						error = "Invalid name: contains non-printable characters.";
 						return false;
 					}
-					Console.Write (c);
+					//Console.Write (c);
 				}
 				
 				if (Name.Contains (" " + " "))
@@ -545,6 +559,11 @@ namespace Terraria_Server.Plugins
 			{
 				get { return (ProjectileType) TypeByte; }
 				set { TypeByte = (byte) value; }
+			}
+
+			public Projectile Current
+			{
+				get { return Main.projectile[Id]; }
 			}
 		}
 		

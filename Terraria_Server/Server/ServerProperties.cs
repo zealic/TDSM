@@ -8,12 +8,18 @@ namespace Terraria_Server
     public class ServerProperties : PropertiesFile
     {
 #region Default Values
+        private const bool      DEFAULT_ALLOW_BACKUPS			= true;
         private const bool      DEFAULT_ALLOW_EXPLOSIONS        = true;
         private const bool      DEFAULT_ALLOW_TDCMRPG           = true;
+        private const bool		DEFAULT_ALWAYS_GENERATE_SNOW	= false;
         private const bool      DEFAULT_AUTOMATIC_UPDATES       = false;
+		private const int		DEFAULT_BACKUP_MINUTE_INTERVAL	= 60;
         private const bool      DEFAULT_BUFFER_LIQUID_UPDATES   = false;
+        private const bool      DEFAULT_COLLECT_GARBAGE			= true;
         private const int       DEFAULT_EXIT_USERS              = -1;
         private const string    DEFAULT_GREETING                = "Welcome to a TDSM Server!@         ~ tdsm.org ~";
+        private const bool		DEFAULT_GENERATE_JUNGLE			= true;
+        private const bool		DEFAULT_GENERATE_SNOW			= true;
         private const bool      DEFAULT_HACKED_DATA             = false;
         private const string    DEFAULT_HARDCORE_DEATH_ACTION   = "none";
         private const bool      DEFAULT_LOG_ROTATION            = true;
@@ -21,8 +27,10 @@ namespace Terraria_Server
         private const int       DEFAULT_MAX_PLAYERS             = 8;
         private const int       DEFAULT_MAX_RESPAWNTIME         = 0;
         private const bool      DEFAULT_NPC_DOOR_OPEN_CANCEL    = false;
+        private const bool      DEFAULT_NPCSPAWN_OVERRIDE		= true;
         private const int       DEFAULT_OVERLIMIT_SLOTS         = 1;
         private const string    DEFAULT_PID_FILE                = "";
+        private const int		DEFAULT_PURGE_BACKUPS_AFTER     = 120;
         private const int       DEFAULT_PORT                    = 7777;
         private const string    DEFAULT_REJECT_ITEMS            = "";
         private const string    DEFAULT_RCON_BIND_ADDRESS       = "127.0.0.1:7023";
@@ -41,14 +49,20 @@ namespace Terraria_Server
 #endregion
 
 #region Key Values
+        private const string    ALLOW_BACKUPS					= "allow-backups";
         private const string    ALLOW_EXPLOSIONS                = "explosions";
         private const string    ALLOW_TDCMRPG                   = "allow-tdcmrpg";
         private const string    AUTOMATIC_UPDATES               = "allowupdates";
+        private const string    ALWAYS_GENERATE_SNOW			= "always-generate-snow";
+        private const string    BACKUP_MINUTE_INTERVAL			= "backup-minutes-interval";
         private const string    BUFFER_LIQUID_UPDATES           = "buffer-liquid-updates";
+        private const string    COLLECT_GARBAGE					= "collect-garbage";
         private const string    EXIT_USERS                      = "exitaccesslevel";
         private const string    DUNGEON_AMOUNT                  = "opt-numdungeons";
         private const string    FLOATING_ISLAND_AMOUNT          = "opt-num-floating-islands";
         private const string    GREETING                        = "greeting";
+        private const string    GENERATE_JUNGLE					= "generate-jungle";
+        private const string    GENERATE_SNOW					= "generate-snow";
         private const string    HACKED_DATA                     = "hackeddata";
         private const string    HARDCORE_DEATH_ACTION           = "hardcore-death-action";
         private const string    LOG_ROTATION                    = "log-rotation";
@@ -58,9 +72,11 @@ namespace Terraria_Server
         private const string    MAX_TILES_X                     = "opt-maxtilesx";
         private const string    MAX_TILES_Y                     = "opt-maxtilesy";
         private const string    NPC_DOOR_OPEN_CANCEL            = "npc-cancelopendoor";
+		private const string	NPCSPAWN_OVERRIDE				= "npcspawns-override";
         private const string    OVERLIMIT_SLOTS                 = "overlimit-slots";
         private const string    PASSWORD                        = "server-password";
         private const string    PID_FILE                        = "pid-file";
+        private const string    PURGE_BACKUPS_AFTER             = "purge-backups-after-xmins";
         private const string    PORT                            = "port";
         private const string    REJECT_ITEMS                    = "rejectplayeritems";
         private const string    RCON_BIND_ADDRESS               = "rcon-bind-address";
@@ -84,13 +100,19 @@ namespace Terraria_Server
         public void pushData()
         {
             object temp = null;
+			temp = AllowBackups;
             temp = AllowExplosions;
             temp = AllowTDCMRPG;
-            temp = AutomaticUpdates;
-            temp = BufferLiquidUpdates;
+			temp = AlwaysGenerateSnow;
+			temp = AutomaticUpdates;
+			temp = BackupInterval;
+			temp = BufferLiquidUpdates;
+			temp = CollectGarbage;
             temp = DungeonAmount;
             temp = ExitAccessLevel;
             temp = FloatingIslandAmount;
+			temp = GenerateJungle;
+			temp = GenerateSnow;
             temp = Greeting;
             temp = HackedData;
             temp = HardcoreDeathAction;
@@ -99,11 +121,13 @@ namespace Terraria_Server
             temp = MaxPlayers;
             temp = MaxRespawnTime;
             temp = MaxTilesX;
-            temp = MaxTilesY;
-            temp = NPCDoorOpenCancel;
+			temp = MaxTilesY;
+			temp = NPCDoorOpenCancel;
+			temp = NPCSpawnsOverride;
             temp = OverlimitSlots;
             temp = Password;
             temp = PIDFile;
+			temp = PurgeBackupsMinutes;
             temp = Port;
             temp = RejectedItems;
             temp = RConBindAddress;
@@ -542,10 +566,59 @@ namespace Terraria_Server
             set { setValue(EXIT_USERS, value); }
         }
 
-        public bool AllowTDCMRPG
-        {
-            get { return getValue(ALLOW_TDCMRPG, DEFAULT_ALLOW_TDCMRPG); }
-            set { setValue(ALLOW_TDCMRPG, value); }
-        }
+		public bool AllowTDCMRPG
+		{
+			get { return getValue(ALLOW_TDCMRPG, DEFAULT_ALLOW_TDCMRPG); }
+			set { setValue(ALLOW_TDCMRPG, value); }
+		}
+
+		public bool CollectGarbage
+		{
+			get { return getValue(COLLECT_GARBAGE, DEFAULT_COLLECT_GARBAGE); }
+			set { setValue(COLLECT_GARBAGE, value); }
+		}
+
+		public bool AlwaysGenerateSnow
+		{
+			get { return getValue(ALWAYS_GENERATE_SNOW, DEFAULT_ALWAYS_GENERATE_SNOW); }
+			set { setValue(ALWAYS_GENERATE_SNOW, value); }
+		}
+
+		public bool GenerateJungle
+		{
+			get { return getValue(GENERATE_JUNGLE, DEFAULT_GENERATE_JUNGLE); }
+			set { setValue(GENERATE_JUNGLE, value); }
+		}
+
+		public bool GenerateSnow
+		{
+			get { return getValue(GENERATE_SNOW, DEFAULT_GENERATE_SNOW); }
+			set { setValue(GENERATE_SNOW, value); }
+		}
+
+		//Cache me
+		public bool NPCSpawnsOverride
+		{
+			get { return getValue(NPCSPAWN_OVERRIDE, DEFAULT_NPCSPAWN_OVERRIDE); }
+			set { setValue(NPCSPAWN_OVERRIDE, value); }
+		}
+
+		public int BackupInterval
+		{
+			get { return getValue(BACKUP_MINUTE_INTERVAL, DEFAULT_BACKUP_MINUTE_INTERVAL); }
+			set { setValue(BACKUP_MINUTE_INTERVAL, value); }
+		}
+
+		public bool AllowBackups
+		{
+			get { return getValue(ALLOW_BACKUPS, DEFAULT_ALLOW_BACKUPS); }
+			set { setValue(ALLOW_BACKUPS, value); }
+		}
+
+		public int PurgeBackupsMinutes
+		{
+			get { return getValue(PURGE_BACKUPS_AFTER, DEFAULT_PURGE_BACKUPS_AFTER); }
+			set { setValue(PURGE_BACKUPS_AFTER, value); }
+		}
     }
 }

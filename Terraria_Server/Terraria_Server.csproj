@@ -101,7 +101,15 @@
     <BaseAddress>4194304</BaseAddress>
   </PropertyGroup>
   <PropertyGroup>
-    <ApplicationIcon>TDSMROGO.ico</ApplicationIcon>
+    <ApplicationIcon>tdsm.ico</ApplicationIcon>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Debug\</OutputPath>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x64'">
+    <PlatformTarget>x64</PlatformTarget>
+    <OutputPath>bin\x64\Release\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -124,9 +132,17 @@
     <Compile Include="Collections\IRegisterableEntity.cs" />
     <Compile Include="Collections\ItemRegistry.cs" />
     <Compile Include="Collections\Registries.cs" />
-    <Compile Include="Definitions\Time.cs" />
+    <Compile Include="Logging\SendingLogger.cs" />
+    <Compile Include="Messages\SpammableMessage.cs" />
+    <Compile Include="Misc\InvasionType.cs" />
+    <Compile Include="Misc\Affix.cs" />
+    <Compile Include="Misc\Time.cs" />
+    <Compile Include="Language\Languages.cs" />
     <Compile Include="Messages\ChestItemMessage.cs" />
     <Compile Include="Messages\ConnectionRequestMessage.cs" />
+    <Compile Include="Messages\HitSwitchMessage.cs" />
+    <Compile Include="Messages\NPCHomeMessage.cs" />
+    <Compile Include="Messages\SpawnNPCs.cs" />
     <Compile Include="TDCM\Packets\ClientModMessage.cs" />
     <Compile Include="Messages\DamageNPCMessage.cs" />
     <Compile Include="Messages\DoorUpdateMessage.cs" />
@@ -168,11 +184,11 @@
     <Compile Include="Messages\UpdatePlayersMessage.cs" />
     <Compile Include="Messages\WorldRequestMessage.cs" />
     <Compile Include="Messages\WriteSignMessage.cs" />
-    <Compile Include="Definitions\Key.cs" />
-    <Compile Include="Definitions\Tile\TileAction.cs" />
-    <Compile Include="Definitions\Tile\TileType.cs" />
+    <Compile Include="Misc\Key.cs" />
+    <Compile Include="Misc\Tile\TileAction.cs" />
+    <Compile Include="Misc\Tile\TileType.cs" />
     <Compile Include="Collections\Registry.cs" />
-    <Compile Include="Misc\BackupManager.cs" />
+    <Compile Include="Server\BackupManager.cs" />
     <Compile Include="Misc\ChatColor.cs" />
     <Compile Include="Misc\ExitException.cs" />
     <Compile Include="Permissions\Node.cs" />
@@ -190,14 +206,13 @@
     <Compile Include="NetMessage.cs" />
     <Compile Include="NPC.cs" />
     <Compile Include="Player.cs" />
-    <Compile Include="Definitions\DoorOpener.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Projectile.cs" />
-    <Compile Include="Definitions\Platform.cs" />
+    <Compile Include="Misc\Platform.cs" />
     <Compile Include="Server\ServerProperties.cs" />
     <Compile Include="Misc\PropertiesFile.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Rectangle.cs" />
+    <Compile Include="Misc\Rectangle.cs" />
     <Compile Include="Server\Server.cs" />
     <Compile Include="Server\Packet.cs" />
     <Compile Include="Server\ServerState.cs" />
@@ -292,9 +307,6 @@
   <ItemGroup>
     <EmbeddedResource Include="Definitions\Projectiles.xml" />
   </ItemGroup>
-  <ItemGroup>
-    <Content Include="TDSMROGO.ico" />
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
@@ -303,7 +315,13 @@
   <Target Name="AfterBuild">
   </Target>
   -->
+  <ItemGroup>
+    <Content Include="tdsm.ico" />
+  </ItemGroup>
   <ItemGroup />
   <ItemGroup />
-  <ItemGroup />
+  <PropertyGroup>
+    <PostBuildEvent>
+    </PostBuildEvent>
+  </PropertyGroup>
 </Project>

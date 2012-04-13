@@ -1,11 +1,8 @@
 ﻿using System;
-using Terraria_Server;
-using Terraria_Server.Collections;
 using Terraria_Utilities.Serialize;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml.Serialization;
-using Terraria_Server.Definitions;
 
 namespace Terraria_Utilities
 {
@@ -29,29 +26,48 @@ namespace Terraria_Utilities
         {
             Console.WriteLine(WELCOME_MESSAGE);
 
-            var location = "E:\\TerrariaServer.exe";
+#region tests
+			//var err = 0;
+			//var res = ConsistencyCheck.CheckTileSets(out err);
+			//if (!res)
+			//{
+			//    Console.WriteLine("TDSM tile set incorrect");
+			//}
+			//else { return; }
+
+			// [START] Test NPC Serializer
+			/*NPCSerializer.Serialize();
+			Console.ReadKey(true);
+			return;*/
+			//[END] Test NPC Serializer */
+#endregion
+
+			//var location = "C:\\TerrariaServer.exe";
             var typeSet = GetSet();
             var upperCase = GetUppercaseFields();
 
             Console.Write("Updating Assemblies...");
 
             /* Update Reference */
-            var i = 0;
+            /*var i = 0;
             foreach (var name_space in new string[] { Item.FullName, NPC.FullName, Projectile.FullName })
             {
-                /* Add extra fields from ignored lists incase we forgot some */
+                /* Add extra fields from ignored lists incase we forgot some * /
                 foreach (var field in typeSet[i++].IgnoreFields)
                 {
                     char letter = field.ToCharArray()[0];
                     if (Char.IsUpper(letter))
                     {
-                        /* Add both; Lower & Upper - Lazy IDC */
+                        /* Add both; Lower & Upper - Lazy IDC * /
                         upperCase[name_space].Add(field);
                         upperCase[name_space].Add(Serializer.ReplaceFirst(field, false));
                     }
                 }
                 Serializer.UpdateAssembly(location, name_space, upperCase[name_space]);
-            }
+            }*/
+
+			Console.Write("Ok\nDumping Affix's...");
+			DumpAffixes();
 
             Console.Write("Ok\nSerializing...");
             Terraria.Main.dedServ = true; //Set this to true, We don't need the GUI shit.
@@ -65,7 +81,7 @@ namespace Terraria_Utilities
                                         set.EntityObjNames, (set.EntityObjNames != null) ? set.EntityObjNames.Length : 1000
                 );
 
-                var ClassName = set.TypeReference.Name + "Type";
+                var ClassName = set.TypeReference.Name + "Type" + set.InvokeType.ToString();
                 var writer = new StreamWriter(ClassName + ".cs");
 
                 Console.Write("Saving {0}...", ClassName);
@@ -76,7 +92,7 @@ namespace Terraria_Utilities
                 {
                     var val = pair.Key;
                     var name = pair.Value.ToUpper().Replace(" ", "_").Replace("'", "");
-                    var line = String.Format("\tN{0}_{1},", pair.Key, name);
+					var line = String.Format("\tN{0}_{1} = {2},", pair.Key, name, pair.Key);
                     var attribute = String.Format("\t[XmlEnum(Name = \"{0}\")]", val);
 
                     writer.WriteLine(attribute);
@@ -220,5 +236,38 @@ namespace Terraria_Utilities
             public String[]     EntityObjNames  { get; set; }
             public InvokeType   InvokeType      { get; set; }
         }
+
+		public static void DumpAffixes()
+		{
+			var ClassName = "Affix";
+			var writer = new StreamWriter(ClassName + ".cs");
+
+			Console.Write("Saving {0}...", ClassName);
+			var l = String.Format("public enum {0} : int", ClassName);
+			writer.WriteLine(l);
+			writer.WriteLine("{");
+
+			var item = new Terraria.Item();
+			for (byte i = 1; i < Terraria_Server.Item.MAX_AFFIXS + 1; i++)
+			{
+				item.prefix = i;
+				var affix = item.AffixName().Trim();
+
+				var line = "\t{0} = {1}";
+				if (i != Terraria_Server.Item.MAX_AFFIXS)
+					line += ',';
+
+				var toWrite = String.Format(line, affix, i);
+				writer.WriteLine(toWrite);
+			}
+
+			writer.WriteLine("}");
+
+			writer.Flush();
+			writer.Close();
+			writer.Dispose();
+
+			Console.WriteLine("Ok");
+		}
     }
 }

@@ -7,6 +7,7 @@ using System.Linq;
 using Terraria_Server.Commands;
 using Terraria_Server.Logging;
 using Terraria_Server.Permissions;
+using Terraria_Server.Language;
 
 namespace Terraria_Server.Plugins
 {
@@ -168,6 +169,36 @@ namespace Terraria_Server.Plugins
 					}
 				}
 			}
+		}
+
+		/// <summary>
+		///		Allows the instance to add variables for translation.
+		/// </summary>
+		/// <param name="key">
+		///		This key will be used to store the translatable value. 
+		///		The key will then be transformed to "plugin name + '_' + key" in order for it to be dedicated for each plugin.
+		/// </param>
+		/// <param name="value">The value to be translated.</param>
+		/// <returns></returns>
+		public string SetLanguageVariable(string key, string value)
+		{
+			var name = Name + '_' + key;
+			name = name.Replace(" ", String.Empty);
+			//lock (Languages.ExtendedLanguages)
+			{
+				if (!Languages.ExtendedLanguages.ContainsKey(name))
+					Languages.ExtendedLanguages[name] = value;
+			}
+
+			return Languages.ExtendedLanguages[name];
+		}
+
+		public string GetLanguageVariable(string key)
+		{
+			var name = Name + '_' + key;
+			name = name.Replace(" ", String.Empty);
+			//lock (Languages.ExtendedLanguages)
+				return Languages.ExtendedLanguages[name];
 		}
 
         public void AddNode(string Node)

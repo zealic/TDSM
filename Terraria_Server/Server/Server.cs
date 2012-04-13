@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Terraria_Server.Misc;
 using Terraria_Server.Logging;
@@ -21,11 +22,6 @@ namespace Terraria_Server
         /// Items which the player should be kicked for attemting to join the server
         /// </summary>
         public static List<String> RejectedItems { get; set; }
-
-        /// <summary>
-        /// Current world instance
-        /// </summary>
-        public static World World { get; set; }
         
         /// <summary>
         /// Gets the White list
@@ -56,15 +52,13 @@ namespace Terraria_Server
         /// <summary>
         /// When the server is ran, Data needs to be set
         /// </summary>
-        /// <param name="NewWorld"></param>
         /// <param name="PlayerCap"></param>
         /// <param name="myWhiteList"></param>
         /// <param name="myBanList"></param>
         /// <param name="myOpList"></param>
-        public static void InitializeData(World NewWorld, int PlayerCap, string myWhiteList, string myBanList, string myOpList)
+        public static void InitializeData(int PlayerCap, string myWhiteList, string myBanList, string myOpList)
         {
             UsingLoginSystem = false;
-            World = NewWorld;
             
             WhiteList = new DataRegister(myWhiteList);
             WhiteList.Load();
@@ -78,9 +72,7 @@ namespace Terraria_Server
             for (int i = 0; i < rejItem.Length; i++)
             {
                 if (rejItem[i].Trim().Length > 0)
-                {
-                    RejectedItems.Add(rejItem[i].Trim());
-                }
+					RejectedItems.Add(rejItem[i].Trim());
             }
 
             AllowExplosions = Program.properties.AllowExplosions;
@@ -99,109 +91,55 @@ namespace Terraria_Server
             foreach (Player player in Main.players)
             {
                 if (player.Active && player.Name.ToLower().Equals(lowercaseName))
-                {
-                    return player;
-                }
+					return player;
             }
             return null;
         }
-        
-        /// <summary>
-        /// Send a message to all online OPs
-        /// </summary>
-        /// <param name="Message"></param>
-        /// <param name="writeToConsole"></param>
-        public static void notifyOps(string Message, bool writeToConsole = true)
-        {
-            if (Statics.cmdMessages)
-            {
-                foreach (Player player in Main.players)
-                {
-                    if (player.Active && player.Op)
-                    {
-                        NetMessage.SendData((int)Packet.PLAYER_CHAT, player.whoAmi, -1, Message, 255, 176f, 196, 222f);
-                    }
-                }
-            }
-            if (writeToConsole)
-            {
-                ProgramLog.Admin.Log(Message);
-            }
-        }
 
-        /// <summary>
-        /// Notify all Ops
-        /// </summary>
-        /// <param name="format"></param>
-        /// <param name="writeToConsole"></param>
-        /// <param name="args"></param>
-        public static void notifyOps(string format, bool writeToConsole = true, params object[] args)
-        {
-            notifyOps(String.Format(format, args), writeToConsole);
-        }
+		/// <summary>
+		/// Send a message to all online OPs
+		/// </summary>
+		/// <param name="Message"></param>
+		/// <param name="writeToConsole"></param>
+		/// <param name="Logger"></param>
+		public static void notifyOps(string Message, bool writeToConsole = true, SendingLogger Logger = SendingLogger.CONSOLE)
+		{
+			if (Statics.cmdMessages)
+			{
+				foreach (Player player in Main.players)
+				{
+					if (player.Active && player.Op)
+						NetMessage.SendData((int)Packet.PLAYER_CHAT, player.whoAmi, -1, Message, 255, 176f, 196, 222f);
+				}
+			}
 
-        /// <summary>
-        /// Sends a Message to all Connected Clients
-        /// </summary>
-        /// <param name="Message"></param>
-        /// <param name="writeToConsole"></param>
-        public static void notifyAll(string Message, bool writeToConsole = true)
-        {
-            NetMessage.SendData((int)Packet.PLAYER_CHAT, -1, -1, Message, 255, 238f, 130f, 238f);
-            if (writeToConsole)
-            {
-                ProgramLog.Admin.Log(Message);
-            }
-        }
+			if (writeToConsole) ProgramLog.Admin.Log(Message, Logger);
+		}
+		
+		/// <summary>
+		/// Sends a Message to all Connected Clients
+		/// </summary>
+		/// <param name="Message"></param>
+		/// <param name="writeToConsole"></param>
+		/// <param name="Logger"></param>
+		public static void notifyAll(string Message, bool writeToConsole = true, SendingLogger Logger = SendingLogger.CONSOLE)
+		{
+			NetMessage.SendData((int)Packet.PLAYER_CHAT, -1, -1, Message, 255, 238f, 130f, 238f);
+			if (writeToConsole) ProgramLog.Admin.Log(Message, Logger);
+		}
 
-        /// <summary>
-        /// Sends a Message to all Connected Clients
-        /// </summary>
-        /// <param name="Message"></param>
-        /// <param name="ChatColour"></param>
-        /// <param name="writeToConsole"></param>
-        public static void notifyAll(string Message, Color ChatColour, bool writeToConsole = true)
-        {
-            NetMessage.SendData((int)Packet.PLAYER_CHAT, -1, -1, Message, 255, ChatColour.R, ChatColour.G, ChatColour.B);
-            if (writeToConsole)
-            {
-                ProgramLog.Admin.Log(Message);
-            }
-        }
-
-        /// <summary>
-        /// Get the array of Active NPCs
-        /// </summary>
-        /// <returns></returns>
-        public static NPC[] ActiveNPCs()
-        {
-            NPC[] npcs = null;
-
-            int npcCount = 0;
-            for (int i = 0; i < NPC.MAX_NPCS; i++)
-            {
-                if (Main.npcs[i].Active)
-                {
-                    npcCount++;
-                }
-            }
-
-            if (npcCount > 0)
-            {
-                npcs = new NPC[npcCount];
-                npcCount = 0;
-                for (int i = 0; i < Main.npcs.Length-1; i++)
-                {
-                    if (Main.npcs[i].Active)
-                    {
-                        npcs[npcCount] = Main.npcs[i];
-                        npcCount++;
-                    }
-                }
-            }
-            
-            return npcs;
-        }
+		/// <summary>
+		/// Sends a Message to all Connected Clients
+		/// </summary>
+		/// <param name="Message"></param>
+		/// <param name="ChatColour"></param>
+		/// <param name="writeToConsole"></param>
+		/// <param name="Logger"></param>
+		public static void notifyAll(string Message, Color ChatColour, bool writeToConsole = true, SendingLogger Logger = SendingLogger.CONSOLE)
+		{
+			NetMessage.SendData((int)Packet.PLAYER_CHAT, -1, -1, Message, 255, ChatColour.R, ChatColour.G, ChatColour.B);
+			if (writeToConsole) ProgramLog.Admin.Log(Message, Logger);
+		}
 
         /// <summary>
         /// Gets the total of all active NPCs
@@ -209,15 +147,14 @@ namespace Terraria_Server
         /// <returns></returns>
         public static int ActiveNPCCount()
         {
-            int npcCount = 0;
+            /*int npcCount = 0;
             for (int i = 0; i < Main.npcs.Length - 1; i++)
             {
                 if (Main.npcs[i].Active)
-                {
-                    npcCount++;
-                }
+					npcCount++;
             }
-            return npcCount;
+            return npcCount;*/
+			return (from x in Main.npcs where x.Active select x).Count();
         }
 
         /// <summary>
@@ -258,15 +195,13 @@ namespace Terraria_Server
         /// <param name="point"></param>
         /// <param name="defaultResist"></param>
         /// <returns></returns>
-        public static bool isValidLocation(Vector2 point, bool defaultResist = true)
+        public static bool IsValidLocation(Vector2 point, bool defaultResist = true)
         {
             if (point != null && (defaultResist) ? (point != default(Vector2)) : true)
                 if (point.X <= Main.maxTilesX && point.X >= 0)
                 {
                     if (point.Y <= Main.maxTilesY && point.Y >= 0)
-                    {
-                        return true;
-                    }
+						return true;
                 }
 
             return false;
@@ -279,14 +214,12 @@ namespace Terraria_Server
         /// <returns></returns>
         public static bool RejectedItemsContains(string item)
         {
-            if (item != null)
+            if (!String.IsNullOrEmpty(item))
             {
                 foreach (string rItem in RejectedItems)
                 {
-                    if (rItem.Trim().Replace(" ", "") == item.Trim().Replace(" ", ""))
-                    {
-                        return true;
-                    }
+                    if (rItem.Trim().Replace(" ", String.Empty) == item.Trim().Replace(" ", String.Empty))
+						return true;
                 }
             }
             return false;
@@ -313,9 +246,7 @@ namespace Terraria_Server
                     playerName = playerName.ToLower();
 
                 if (playerName.StartsWith((ignoreCase) ? partName.ToLower() : partName))
-                {
-                    matches.Add(player);
-                }
+					matches.Add(player);
             }
 
             return matches;
@@ -328,9 +259,9 @@ namespace Terraria_Server
         /// <param name="ItemIdOrName"></param>
         /// <param name="ItemList"></param>
         /// <returns></returns>
-        public static bool TryFindItem<T>(T ItemIdOrName, out List<Int32> ItemList)
+        public static bool TryFindItem<T>(T ItemIdOrName, out List<ItemInfo> ItemList)
         {
-            ItemList = new List<Int32>();
+			ItemList = new List<ItemInfo>();
 
             foreach (var pair in Registries.Item.TypesById)
             {
@@ -343,8 +274,12 @@ namespace Terraria_Server
                     foreach (var item in items)
                     {
                         var type = item.Type;
-                        if (type == itemT && !ItemList.Contains(type))
-                            ItemList.Add(type);
+						if (type == itemT && !ItemList.ContainsType(type))
+							ItemList.Add(new ItemInfo()
+							{
+								Type = type,
+								NetID = item.NetID
+							});
                     }
                 }
                 else if (ItemIdOrName is String)
@@ -356,8 +291,12 @@ namespace Terraria_Server
                         var type = item.Type;
                         var curItem = CleanName(item.Name);
 
-                        if (curItem == findItem && !ItemList.Contains(type))
-                            ItemList.Add(type);
+						if (curItem == findItem && !ItemList.ContainsType(type))
+							ItemList.Add(new ItemInfo()
+							{
+								Type = type,
+								NetID = item.NetID
+							});
                     }
                 }
             }
@@ -371,8 +310,12 @@ namespace Terraria_Server
                     var itemT = Int32.Parse(ItemIdOrName.ToString());
                     var type = item.Type;
 
-                    if (type == itemT && !ItemList.Contains(type))
-                        ItemList.Add(type);
+                    if (type == itemT && !ItemList.ContainsType(type))
+						ItemList.Add(new ItemInfo()
+						{
+							Type = type,
+							NetID = item.NetID
+						});
                 }
                 else if (ItemIdOrName is String)
                 {
@@ -380,8 +323,12 @@ namespace Terraria_Server
                     var findItem = CleanName(ItemIdOrName as String);
                     var curItem = CleanName(item.Name);
 
-                    if (curItem == findItem && !ItemList.Contains(type))
-                        ItemList.Add(type);
+					if (curItem == findItem && !ItemList.ContainsType(type))
+						ItemList.Add(new ItemInfo()
+						{
+							Type = type,
+							NetID = item.NetID
+						});
                 }
             }
 
@@ -394,7 +341,7 @@ namespace Terraria_Server
         /// <param name="ItemID"></param>
         /// <param name="ItemList"></param>
         /// <returns></returns>
-        public static bool TryFindItemByType(int ItemID, out List<Int32> ItemList)
+		public static bool TryFindItemByType(int ItemID, out List<ItemInfo> ItemList)
         {
             return TryFindItem(ItemID, out ItemList);
         }
@@ -405,7 +352,7 @@ namespace Terraria_Server
         /// <param name="ItemName"></param>
         /// <param name="ItemList"></param>
         /// <returns></returns>
-        public static bool TryFindItemByName(string ItemName, out List<Int32> ItemList)
+        public static bool TryFindItemByName(string ItemName, out List<ItemInfo> ItemList)
         {
             return TryFindItem(ItemName, out ItemList);
         }
@@ -419,5 +366,42 @@ namespace Terraria_Server
         {
             return input.Replace(" ", String.Empty).ToLower();
         }
+
+		/// <summary>
+		/// Attempts to find the first online player
+		///		Usually the Slot Manager assigns them to the lowest possible index
+		/// </summary>
+		/// <param name="player"></param>
+		/// <returns></returns>
+		public static bool TryGetFirstOnlinePlayer(out Player player)
+		{
+			player = null;
+			try
+			{
+				for (var i = 0; i < NetPlay.maxConnections; i++)
+				{
+					var ply = Main.players[i];
+					if (ply.Active && ply.Name.Trim() != String.Empty)
+					{
+						player = ply;
+						return true;
+					}
+				}
+			}
+			catch { }
+
+			return false;
+		}
+
+		public static bool ContainsType(this List<ItemInfo> list, int type)
+		{
+			return list.Where(x => x.Type == type).Count() > 0;
+		}
     }
+
+	public struct ItemInfo
+	{
+		public int NetID { get; set; }
+		public int Type { get; set; }
+	}
 }

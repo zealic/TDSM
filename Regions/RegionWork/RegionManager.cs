@@ -22,6 +22,7 @@ namespace Regions.RegionWork
         {
             SaveFolder = saveFolder;
             this.mysqlenabled = mysqlenabled;
+			Regions = new List<Region>();
             this.connectionString = connectionString;
 
             if (!Directory.Exists(saveFolder))

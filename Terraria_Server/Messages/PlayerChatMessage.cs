@@ -82,6 +82,10 @@ namespace Terraria_Server.Messages
 			{
 				color = ChatColor.Tomato;
 			}
+			else if (player.team > 0 && player.team < Main.teamColor.Length)
+			{
+				color = Main.teamColor[player.team];
+			}
 			
 			var ctx = new HookContext
 			{
@@ -102,7 +106,7 @@ namespace Terraria_Server.Messages
 				return;
 			
 			NetMessage.SendData (Packet.PLAYER_CHAT, -1, -1, chat, whoAmI, args.Color.R, args.Color.G, args.Color.B);
-			ProgramLog.Chat.Log ("<" + player.Name + "> " + chat);
+			ProgramLog.Chat.Log ("<" + player.Name + "> " + chat, SendingLogger.PLAYER);
         }
     }
 }

@@ -1,7 +1,6 @@
 using System;
 using Terraria_Server.Plugins;
 using Terraria_Server.Misc;
-using Terraria_Server.Definitions.Tile;
 using Terraria_Server.WorldMod;
 
 namespace Terraria_Server.Messages
@@ -102,6 +101,8 @@ namespace Terraria_Server.Messages
 							different |= (tile.Lava ? 1 : 0) != readBuffer[num++];
 						}
 						
+						tile.Wire = (b9 & 16) == 16;
+						
 						if (different)
 						{
 							break;
@@ -151,7 +152,7 @@ namespace Terraria_Server.Messages
 			
 			if (args.applied > 0)
 			{
-				WorldModify.RangeFrame(left, top, left + (int)size, top + (int)size);
+				WorldModify.RangeFrame(null, null, left, top, left + (int)size, top + (int)size);
 				NetMessage.SendData(Packet.TILE_SQUARE, -1, whoAmI, "", (int)size, (float)left, (float)top);
 			}
 			

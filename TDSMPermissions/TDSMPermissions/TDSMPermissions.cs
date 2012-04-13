@@ -29,7 +29,7 @@ namespace TDSMPermissions
             Description = "Permissions for TDSM.";
             Author = "Malkierian";
             Version = "1";
-            TDSMBuild = 36;
+            TDSMBuild = 37;
         }
 
         protected override void Initialized(object state)
@@ -57,15 +57,15 @@ namespace TDSMPermissions
 
         protected override void Enabled()
         {
-            ProgramLog.Log(base.Name + " enabled.");
+            ProgramLog.Plugin.Log(base.Name + " enabled.");
         }
 
         protected override void Disabled()
         {
-            ProgramLog.Log(base.Name + " disabled.");
+			ProgramLog.Plugin.Log(base.Name + " disabled.");
         }
         
-        [Hook(HookOrder.NORMAL)]
+        [Hook(HookOrder.FIRST)]
         void OnChat(ref HookContext ctx, ref HookArgs.PlayerChat args)
         {
             if (ctx.Player.AuthenticatedAs != null)

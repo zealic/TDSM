@@ -3,6 +3,7 @@ using System.Threading;
 using System.Collections.Generic;
 using System;
 using Terraria_Server.Logging;
+using Terraria_Server.Language;
 
 namespace Terraria_Server.Misc
 {
@@ -15,7 +16,7 @@ namespace Terraria_Server.Misc
 
         private string propertiesPath = String.Empty;
 
-        private List<String> header = new List<String>();
+		private List<String> header;
 		
 		public int Count
 		{
@@ -25,6 +26,7 @@ namespace Terraria_Server.Misc
         public PropertiesFile(string propertiesPath)
         {
             propertiesMap = new Dictionary<String, String>();
+			header = new List<String>();
             this.propertiesPath = propertiesPath;
         }
 
@@ -87,17 +89,17 @@ namespace Terraria_Server.Misc
             {
                 File.Replace(tmpName, propertiesPath, null, true);
                 if (log)
-                    ProgramLog.Log("Saved file \"{0}\".", propertiesPath);
+                    ProgramLog.Log("{1} \"{0}\".", propertiesPath, Languages.SavedFile);
             }
             catch (IOException e)
             {
                 if (log)
-                    ProgramLog.Log("Save to \"{0}\" failed: {1}", propertiesPath, e.Message);
+					ProgramLog.Log("{2} \"{0}\" {3}: {1}", propertiesPath, e.Message, Languages.SavedTo, Languages.Failed);
             }
             catch (SystemException e)
             {
                 if (log)
-                    ProgramLog.Log("Save to \"{0}\" failed: {1}", propertiesPath, e.Message);
+					ProgramLog.Log("{2} \"{0}\" {3}: {1}", propertiesPath, e.Message, Languages.SavedTo, Languages.Failed);
             }
             
         }

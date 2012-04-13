@@ -6,6 +6,8 @@ using System.Xml.Serialization;
 using System.Reflection;
 using Terraria_Server.Logging;
 using Terraria_Server.Misc;
+using Terraria_Server.Language;
+using System.Linq;
 
 namespace Terraria_Server.Collections
 {
@@ -13,8 +15,6 @@ namespace Terraria_Server.Collections
     {
         protected Dictionary<Int32, List<T>> typeLookup = new Dictionary<Int32, List<T>>();
         protected Dictionary<String, T> nameLookup = new Dictionary<String, T>();
-
-        protected string DEFINITIONS = "Terraria_Server.Definitions.";
 
         private readonly T defaultValue;
 
@@ -42,7 +42,7 @@ namespace Terraria_Server.Collections
 		public void Load (string filePath)
 		{
 			var document = new XmlDocument ();
-			document.Load (Assembly.GetExecutingAssembly().GetManifestResourceStream(DEFINITIONS + filePath));
+			document.Load (Assembly.GetExecutingAssembly().GetManifestResourceStream(Registries.DEFINITIONS + filePath));
 			var nodes = document.SelectNodes ("/*/*");
 			var ser = new XmlSerializer (typeof(T));
 			
@@ -58,8 +58,8 @@ namespace Terraria_Server.Collections
 					t.Name = String.Intern (t.Name);
 					if (t.NetID == 0) t.NetID = (short)t.Type;
 					//Networking.StringCache.Add (System.Text.Encoding.ASCII.GetBytes (t.Name), t.Name);
-					Networking.StringCache.Add (t.Name);
-					
+					Networking.StringCache.Add(t.Name);
+
 					if (typeLookup.ContainsKey(t.Type))
 					{
 						List<T> values;
@@ -84,8 +84,7 @@ namespace Terraria_Server.Collections
 				{
 					ProgramLog.Log (e, "Error adding element");
 					ProgramLog.Error.Log ("Element was:\n" + node.ToString());
-				}
-				
+				}				
 			}
 		}
 
@@ -146,22 +145,23 @@ namespace Terraria_Server.Collections
             }
             return CloneAndInit(defaultValue);
         }
-
-
-        public T FindClass(string name)
+		
+        public T FindClass(string nameOrId)
         {
+			int id = 0;
+			var parsed = Int32.TryParse(nameOrId, out id);
             List<T> values;
+
             foreach (int type in typeLookup.Keys)
             {
                 if (typeLookup.TryGetValue(type, out values))
                 {
                     foreach (T value in values)
                     {
-                        if (value.Name.ToLower().Replace(" ", "").Trim() == name.ToLower().Replace(" ", "").Trim()) //Exact :3
-                        {
-                            //CloneAndInit(values[i]);
-                            return value;
-                        }
+						var trimmed = value.Name.ToLower().Replace(" ", "").Trim() == nameOrId.ToLower().Replace(" ", "").Trim();
+
+						if(trimmed || parsed && value.Type == id)
+							return value;
                     }
                 }
             }

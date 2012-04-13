@@ -11,7 +11,7 @@ namespace Terraria_Server
      
 		public TileCollection (int X, int Y)
 		{
-			ProgramLog.Log ("Creating tile array of {0}x{1}, {2}MB", X, Y, Marshal.SizeOf (typeof(TileData)) * X * Y / 1024 / 1024);
+			ProgramLog.Log("{3} {0}x{1}, {2}MB", X, Y, Marshal.SizeOf(typeof(TileData)) * X * Y / 1024 / 1024, Language.Languages.CreatingTileArrayOf);
 			data = new TileData [X, Y];
 		}
      
@@ -22,10 +22,15 @@ namespace Terraria_Server
 		public int SizeY {
 			get { return data.GetLength (1); }
 		}
-     
-		public TileRef At (int x, int y)
+
+		public TileRef At(int x, int y)
 		{
-			return new TileRef (x, y);
+			return new TileRef(x, y);
+		}
+
+		public static ITile ITileAt(int x, int y)
+		{
+			return new TileRef(x, y);
 		}
      
 		public TileRef CreateTileAt (int x, int y)

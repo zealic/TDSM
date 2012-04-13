@@ -15,13 +15,14 @@ namespace Terraria_Server.TDCM.Packets.Quests
         /// <param name="npcId"></param>
         public static void NPC_NPCSpawnHandler(int npcId)
         {
-            var npc = Main.npcs[npcId];
+			return;
+            /*var npc = Main.npcs[npcId];
 
             if (Main.rand == null)
                 Main.rand = new Random((int)DateTime.Now.Ticks);
 
             CheckAndSpawn(QuestType.SLIME_QUEST, "Green Slime", npc);
-            CheckAndSpawn(QuestType.ALCHEMIST_2, "Demon Eye", npc);
+            CheckAndSpawn(QuestType.ALCHEMIST_2, "Demon Eye", npc);*/
         }
 
         public static void CheckAndSpawn(QuestType Type, string Name, NPC Npc)

@@ -1,9 +1,10 @@
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using Terraria_Server.Plugins;
 using Terraria_Server.Logging;
+using Terraria_Server.Definitions;
+
 namespace Terraria_Server.WorldMod
 {
 	public class PlayerSandbox : ISandbox
@@ -67,7 +68,7 @@ namespace Terraria_Server.WorldMod
 				{
 					case SideEffectType.ADD_WATER:
 					{
-						Liquid.AddWater (eff.X, eff.Y);
+						Terraria_Server.Liquid.AddWater (null, null, eff.X, eff.Y); //Applying => Normal Tile References
 						break;
 					}
 					
@@ -99,9 +100,9 @@ namespace Terraria_Server.WorldMod
 							
 							if (!ctx.CheckForKick () && ctx.Result != HookResult.IGNORE)
 							{
-								ProgramLog.Users.Log ("{0} @ {1}: Eater of Worlds summoned by {2}.", player.IPAddress, player.whoAmi, player.Name);
-								NetMessage.SendData (Packet.PLAYER_CHAT, -1, -1, string.Concat (player.Name, " has summoned the Eater of Worlds!"), 255, 255, 128, 150);
-								NPC.SpawnOnPlayer(player, player.whoAmi, 13);
+								//ProgramLog.Users.Log ("{0} @ {1}: Eater of Worlds summoned by {2}.", player.IPAddress, player.whoAmi, player.Name);
+								//NetMessage.SendData (Packet.PLAYER_CHAT, -1, -1, string.Concat (player.Name, " has summoned the Eater of Worlds!"), 255, 255, 128, 150);
+								NPC.SpawnOnPlayer(player.whoAmi, (int)NPCType.N13_EATER_OF_WORLDS_HEAD);
 							}
 						}
 						else
@@ -295,14 +296,16 @@ namespace Terraria_Server.WorldMod
 		{
 			AddSideEffect (SideEffectType.SMASH_SHADOW_ORB, x, y);
 		}
-		
-		public void NewItem          (int x, int y, int w, int h, int type, int stack = 1, bool noBroadcast = false)
+
+		public void NewItem(int x, int y, int w, int h, int type, int stack = 1, bool noBroadcast = false, int pfix = 0, int NetID = 255)
 		{
 			var eff = AddSideEffect (SideEffectType.NEW_ITEM, x, y);
 			eff.Width = w;
 			eff.Height = h;
 			eff.Type = type;
 			eff.Stack = stack;
+			eff.Prefix = pfix;
+			eff.NetId = NetID;
 			eff.NoBroadcast = noBroadcast;
 		}
 		
@@ -370,7 +373,7 @@ namespace Terraria_Server.WorldMod
 			return Main.tile.At(x, y).Wall;
 		}
 		
-		public byte LiquidAt (int x, int y)
+		public byte Liquid (int x, int y)
 		{
 			int idx;
 			if (changedTiles.TryGetValue((uint) (x << 16) | (uint) y, out idx))
@@ -478,7 +481,7 @@ namespace Terraria_Server.WorldMod
 			tiles[idx].Wall = val;
 		}
 		
-		public void SetLiquidAt (int x, int y, byte val)
+		public void SetLiquid (int x, int y, byte val)
 		{
 			var idx = Change (x, y);
 			tiles[idx].Liquid = val;
@@ -495,11 +498,79 @@ namespace Terraria_Server.WorldMod
 			var idx = Change (x, y);
 			tiles[idx].FrameX = val;
 		}
-		
-		public void SetFrameYAt (int x, int y, short val)
+
+		public void SetFrameYAt(int x, int y, short val)
 		{
-			var idx = Change (x, y);
+			var idx = Change(x, y);
 			tiles[idx].FrameY = val;
+		}
+
+		public void SetWire(int x, int y, bool val)
+		{
+			var idx = Change(x, y);
+			tiles[idx].Wire = val;
+		}
+
+		public bool Wire(int x, int y)
+		{
+			int idx;
+			if (changedTiles.TryGetValue((uint)(x << 16) | (uint)y, out idx))
+				return tiles[idx].Wire;
+
+			return Main.tile.At(x, y).Wire;
+		}
+
+		public void SetSkipLiquid(int x, int y, bool val)
+		{
+			var idx = Change(x, y);
+			tiles[idx].SkipLiquid = val;
+		}
+
+		public bool SkipLiquid(int x, int y)
+		{
+			int idx;
+			if (changedTiles.TryGetValue((uint)(x << 16) | (uint)y, out idx))
+				return tiles[idx].SkipLiquid;
+
+			return Main.tile.At(x, y).SkipLiquid;
+		}
+
+		public void SetCheckingLiquid(int x, int y, bool val)
+		{
+			var idx = Change(x, y);
+			tiles[idx].CheckingLiquid = val;
+		}
+
+		public bool CheckingLiquid(int x, int y)
+		{
+			int idx;
+			if (changedTiles.TryGetValue((uint)(x << 16) | (uint)y, out idx))
+				return tiles[idx].CheckingLiquid;
+
+			return Main.tile.At(x, y).CheckingLiquid;
+		}
+
+		public void AddLiquid(int x, int y, int val)
+		{
+			var idx = Change(x, y);
+			tiles[idx].liquid = (byte)(tiles[idx].liquid + val);
+		}
+
+		public void AddFrameX(int x, int y, int val)
+		{
+			var idx = Change(x, y);
+			tiles[idx].FrameX = (byte)(tiles[idx].FrameX + val);
+		}
+
+		public void AddFrameY(int x, int y, int val)
+		{
+			var idx = Change(x, y);
+			tiles[idx].FrameY = (byte)(tiles[idx].FrameY + val);
+		}
+
+		public bool Exists(int x, int y)
+		{
+			return changedTiles.ContainsKey((uint)(x << 16) | (uint)y);
 		}
 	}
 }

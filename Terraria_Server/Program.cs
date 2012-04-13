@@ -1,3 +1,5 @@
+//#define CATCHERROR_UPDATELOOP
+
 using System.Threading;
 using System;
 using System.IO;
@@ -13,75 +15,88 @@ using System.Security.Policy;
 using Terraria_Server.Misc;
 using Terraria_Server.Plugins;
 using Terraria_Server.Permissions;
+using Terraria_Server.Language;
+using Terraria_Server.Networking;
 
 namespace Terraria_Server
 {
-	public class Program
-    {
-
-#pragma warning disable 618
-
-        public const string VERSION_NUMBER = "v1.1";
-
+	public static class Program
+	{
 		public static ProgramThread updateThread = null;
 		public static ServerProperties properties = null;
 		public static CommandParser commandParser = null;
 		public static PermissionManager permissionManager = null;
+		public static ConsoleSender ConsoleSender { get; set; }
+		public static bool Restarting { get; set; }
 
-        public static void Main(string[] args)
+		public static void Main(string[] args)
 		{
 			Thread.CurrentThread.Name = "Main";
-            try
-            {
-                string MODInfo = "Terraria's Dedicated Server Mod. (" + VERSION_NUMBER + " {" + Statics.CURRENT_TERRARIA_RELEASE + "}) #"
-					+ Statics.BUILD;
+
+			//header: Terraria's Dedicated Server Mod. (1.1.2 #36) ~ Build: 37 [CodeName]
+			string MODInfo = String.Format(
+				"Terraria's Dedicated Server Mod. ({0} #{1}) ~ Build: {2} [{3}]",
+				Statics.VERSION_NUMBER,
+				Statics.CURRENT_TERRARIA_RELEASE,
+				Statics.BUILD,
+				Statics.CODENAME
+			);
+
+			try
+			{
 				try
 				{
 					Console.Title = MODInfo;
 				}
-				catch
+				catch { }
+
+				var lis = new Logging.LogTraceListener();
+				System.Diagnostics.Trace.Listeners.Clear();
+				System.Diagnostics.Trace.Listeners.Add(lis);
+				System.Diagnostics.Debug.Listeners.Clear();
+				System.Diagnostics.Debug.Listeners.Add(lis);
+				
+				using (var prog = new ProgressLogger(1, "Loading language definitions"))
+					Languages.LoadClass(Collections.Registries.LANGUAGE_FILE);
+
+				if (Languages.Startup_Initializing == null)
 				{
-
-				}
-
-				var lis = new Logging.LogTraceListener ();
-				System.Diagnostics.Trace.Listeners.Clear ();
-				System.Diagnostics.Trace.Listeners.Add (lis);
-				System.Diagnostics.Debug.Listeners.Clear ();
-				System.Diagnostics.Debug.Listeners.Add (lis);
-
-				ProgramLog.Log ("Initializing " + MODInfo);
-
-				ProgramLog.Log ("Setting up Paths.");
-				if (!SetupPaths())
-				{
+					ProgramLog.Error.Log("Please update the language file, either by deleting or finding another online.");
+					Console.ReadKey(true);
 					return;
 				}
-				
+
+				ProgramLog.Log("{0} {1}", Languages.Startup_Initializing, MODInfo);
+
+				ProgramLog.Log(Languages.Startup_SettingUpPaths);
+				if (!SetupPaths())
+					return;
+
 				Platform.InitPlatform();
 
-				ProgramLog.Log ("Setting up Properties.");
+				ProgramLog.Log(Languages.Startup_SettingUpProperties);
 				bool propertiesExist = File.Exists("server.properties");
 				SetupProperties();
 
 				if (!propertiesExist)
 				{
-					ProgramLog.Console.Print ("New properties file created. Would you like to exit for editing? [Y/n]: ");
+					ProgramLog.Console.Print(Languages.Startup_NoPropertiesFileFound);
 					if (Console.ReadLine().ToLower() == "y")
 					{
-						ProgramLog.Console.Print ("Complete, Press any Key to Exit...");
-						Console.ReadKey(true);
+						//ProgramLog.Console.Print(Languages.Startup_PropertiesCreationComplete);
+						ProgramLog.Log(Languages.ExitRequestCommand);
+						//Console.ReadKey(true);
 						return;
 					}
 				}
-				
-				var logFile = Statics.DataPath + Path.DirectorySeparatorChar + "server.log";
-				ProgramLog.OpenLogFile (logFile);
 
-                string PIDFile = properties.PIDFile.Trim();
+				var logFile = Statics.DataPath + Path.DirectorySeparatorChar + "server.log";
+				ProgramLog.OpenLogFile(logFile);
+
+				string PIDFile = properties.PIDFile.Trim();
 				if (PIDFile.Length > 0)
 				{
-                    string ProcessUID = Process.GetCurrentProcess().Id.ToString();
+					string ProcessUID = Process.GetCurrentProcess().Id.ToString();
 					bool Issue = false;
 					if (File.Exists(PIDFile))
 					{
@@ -91,10 +106,10 @@ namespace Terraria_Server
 						}
 						catch (Exception)
 						{
-							ProgramLog.Console.Print ("Issue deleting PID file, Continue? [Y/n]: ");
+							ProgramLog.Console.Print(Languages.Startup_IssueDeletingPID);
 							if (Console.ReadLine().ToLower() == "n")
 							{
-								ProgramLog.Console.Print ("Press any Key to Exit...");
+								ProgramLog.Console.Print(Languages.Startup_PressAnyKeyToExit);
 								Console.ReadKey(true);
 								return;
 							}
@@ -109,15 +124,15 @@ namespace Terraria_Server
 						}
 						catch (Exception)
 						{
-							ProgramLog.Console.Print ("Issue creating PID file, Continue? [Y/n]: ");
+							ProgramLog.Console.Print(Languages.Startup_IssueCreatingPID);
 							if (Console.ReadLine().ToLower() == "n")
 							{
-								ProgramLog.Console.Print ("Press any Key to Exit...");
+								ProgramLog.Console.Print(Languages.Startup_PressAnyKeyToExit);
 								Console.ReadKey(true);
 								return;
 							}
 						}
-						ProgramLog.Log ("PID File Created, Process ID: " + ProcessUID);
+						ProgramLog.Log(Languages.Startup_PIDCreated + ProcessUID);
 					}
 				}
 
@@ -127,7 +142,7 @@ namespace Terraria_Server
 				{
 					if (UpdateManager.performProcess())
 					{
-						ProgramLog.Log ("Restarting into new update!");
+						ProgramLog.Log(Languages.Startup_RestartingIntoNewUpdate);
 						return;
 					}
 				}
@@ -137,47 +152,44 @@ namespace Terraria_Server
 				}
 				catch (Exception e)
 				{
-					ProgramLog.Log (e, "Error updating");
+					ProgramLog.Log(e, Languages.Startup_ErrorUpdating);
 				}
-				
-				LoadMonitor.Start ();
-				
-				ProgramLog.Log ("Starting remote console server");
-				RemoteConsole.RConServer.Start ("rcon_logins.properties");
 
-				ProgramLog.Log("Starting permissions manager");
+				LoadMonitor.Start();
+
+				ProgramLog.Log(Languages.Startup_StartingRCON);
+				RemoteConsole.RConServer.Start("rcon_logins.properties");
+
+				ProgramLog.Log(Languages.Startup_StartingPermissions);
 				permissionManager = new PermissionManager();
-				
-				ProgramLog.Log ("Preparing Server Data...");
-				
-				using (var prog = new ProgressLogger (1, "Loading item definitions"))
-					Collections.Registries.Item.Load ();
-				using (var prog = new ProgressLogger (1, "Loading NPC definitions"))
-					Collections.Registries.NPC.Load (Collections.Registries.NPC_FILE);
-				using (var prog = new ProgressLogger (1, "Loading projectile definitions"))
-					Collections.Registries.Projectile.Load (Collections.Registries.PROJECTILE_FILE);
-                                
-                commandParser = new CommandParser();
-                commandParser.ReadPermissionNodes();
-				
-				ProgramLog.Log("Loading plugins...");
-                Terraria_Server.Plugins.PluginManager.Initialize(Statics.PluginPath, Statics.LibrariesPath);
 
-                var ctx = new HookContext()
-                {
-                    Sender = new ConsoleSender()
-                };
+				ProgramLog.Log(Languages.Startup_PreparingServerData);
 
-                var eArgs = new HookArgs.ServerStateChange()
-                {
-                    ServerChangeState = ServerState.INITIALIZING
-                };
+				using (var prog = new ProgressLogger(1, Languages.Startup_LoadingItemDefinitions))
+					Collections.Registries.Item.Load();
+				using (var prog = new ProgressLogger(1, Languages.Startup_LoadingNPCDefinitions))
+					Collections.Registries.NPC.Load(Collections.Registries.NPC_FILE);
+				using (var prog = new ProgressLogger(1, Languages.Startup_LoadingProjectileDefinitions))
+					Collections.Registries.Projectile.Load(Collections.Registries.PROJECTILE_FILE);
 
-                HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
-				PluginManager.LoadPlugins ();
-				ProgramLog.Log("Plugins loaded: " + PluginManager.PluginCount);
-				
-                string worldFile = properties.WorldPath;
+				//if (Languages.IsOutOfDate())
+				//    ProgramLog.Error.Log(
+				//        String.Format("{0}\n{1}",
+				//        Languages.Startup_LanguageFileOOD, Languages.Startup_LanguageFileUpdate)
+				//        , true);
+
+				commandParser = new CommandParser();
+				commandParser.ReadPermissionNodes();
+
+				LoadPlugins();
+
+				/* Save access languages - once only */
+				Languages.Save(Collections.Registries.LANGUAGE_FILE);
+
+				HookContext ctx;
+				HookArgs.ServerStateChange eArgs;
+
+				string worldFile = properties.WorldPath;
 				FileInfo file = new FileInfo(worldFile);
 
 				if (!file.Exists)
@@ -188,31 +200,31 @@ namespace Terraria_Server
 					}
 					catch (Exception exception)
 					{
-						ProgramLog.Log (exception);
-						ProgramLog.Console.Print ("Press any key to continue...");
+						ProgramLog.Log(exception);
+						ProgramLog.Console.Print(Languages.Startup_PressAnyKeyToExit);
 						Console.ReadKey(true);
 						return;
 					}
 
-                    ctx = new HookContext
-                    {
-                        Sender = new WorldSender(),
-                    };
+					ctx = new HookContext
+					{
+						Sender = World.Sender,
+					};
 
-                    eArgs = new HookArgs.ServerStateChange
-                    {
-                        ServerChangeState = ServerState.GENERATING
-                    };
+					eArgs = new HookArgs.ServerStateChange
+					{
+						ServerChangeState = ServerState.GENERATING
+					};
 
-                    HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
+					HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
 
-					ProgramLog.Log ("Generating world '{0}'", worldFile);
+					ProgramLog.Log("{0} '{1}'", Languages.Startup_GeneratingWorld, worldFile);
 
-                    string seed = properties.Seed;
+					string seed = properties.Seed;
 					if (seed == "-1")
 					{
-						seed = new Random().Next(100).ToString();
-						ProgramLog.Log ("Generated seed: {0}", seed);
+						seed = WorldModify.genRand.Next(Int32.MaxValue).ToString();
+						ProgramLog.Log("{0} {1}", Languages.Startup_GeneratedSeed, seed);
 					}
 
 					int worldX = properties.GetMapSizes()[0];
@@ -229,19 +241,19 @@ namespace Terraria_Server
 
 						if (worldX < (int)World.MAP_SIZE.SMALL_X || worldY < (int)World.MAP_SIZE.SMALL_Y)
 						{
-							ProgramLog.Log ("World dimensions need to be equal to or larger than {0} by {1}; using built-in 'small'", (int)World.MAP_SIZE.SMALL_X, (int)World.MAP_SIZE.SMALL_Y);
+							ProgramLog.Log("{0} {1}x{2}", Languages.Startup_WorldSizingError, (int)World.MAP_SIZE.SMALL_X, (int)World.MAP_SIZE.SMALL_Y);
 							worldX = (int)((int)World.MAP_SIZE.SMALL_Y * 3.5);
 							worldY = (int)World.MAP_SIZE.SMALL_Y;
 						}
 
-						ProgramLog.Log ("Generating world with custom map size: {0}x{1}", worldX, worldY);
+						ProgramLog.Log("{0} {1}x{2}", Languages.Startup_GeneratingWithCustomSize, worldX, worldY);
 					}
 
-                    Terraria_Server.Main.maxTilesX = worldX;
-                    Terraria_Server.Main.maxTilesY = worldY;
+					Terraria_Server.Main.maxTilesX = worldX;
+					Terraria_Server.Main.maxTilesY = worldY;
 
-					WorldIO.clearWorld();
-                    Terraria_Server.Main.Initialize();
+					WorldIO.ClearWorld();
+					Terraria_Server.Main.Initialize();
 					if (properties.UseCustomGenOpts)
 					{
 						WorldGen.numDungeons = properties.DungeonAmount;
@@ -250,24 +262,24 @@ namespace Terraria_Server
 					else
 					{
 						WorldGen.numDungeons = 1;
-                        WorldModify.ficount = (int)((double)Terraria_Server.Main.maxTilesX * 0.0008); //The Statics one was generating with default values, We want it to use the actual tileX for the world
+						WorldModify.ficount = (int)((double)Terraria_Server.Main.maxTilesX * 0.0008); //The Statics one was generating with default values, We want it to use the actual tileX for the world
 					}
-                    WorldGen.GenerateWorld(seed);
-					WorldIO.saveWorld(worldFile, true);
+					WorldGen.GenerateWorld(null, seed);
+					WorldIO.SaveWorld(worldFile, true);
 				}
-                
-                ctx = new HookContext
-                {
-                    Sender = new WorldSender(),
-                };
 
-                eArgs = new HookArgs.ServerStateChange
-                {
-                    ServerChangeState = ServerState.LOADING
-                };
+				ctx = new HookContext
+				{
+					Sender = World.Sender,
+				};
 
-                HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
-				
+				eArgs = new HookArgs.ServerStateChange
+				{
+					ServerChangeState = ServerState.LOADING
+				};
+
+				HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
+
 				// TODO: read map size from world file instead of config
 				int worldXtiles = properties.GetMapSizes()[0];
 				int worldYtiles = properties.GetMapSizes()[1];
@@ -284,143 +296,161 @@ namespace Terraria_Server
 
 					if (worldXtiles < (int)World.MAP_SIZE.SMALL_X || worldYtiles < (int)World.MAP_SIZE.SMALL_Y)
 					{
-						ProgramLog.Log ("World dimensions need to be equal to or larger than {0} by {1}; using built-in 'small'", (int)World.MAP_SIZE.SMALL_X, (int)World.MAP_SIZE.SMALL_Y);
+						ProgramLog.Log("{0} {1}x{2}", Languages.Startup_WorldSizingError, (int)World.MAP_SIZE.SMALL_X, (int)World.MAP_SIZE.SMALL_Y);
 						worldXtiles = (int)((int)World.MAP_SIZE.SMALL_Y * 3.5);
 						worldYtiles = (int)World.MAP_SIZE.SMALL_Y;
 					}
 
-					ProgramLog.Log ("Using world with custom map size: {0}x{1}", worldXtiles, worldYtiles);
+					ProgramLog.Log("{0} {1}x{2}", Languages.Startup_GeneratingWithCustomSize, worldXtiles, worldXtiles);
 				}
 
-				World world = new World(worldXtiles, worldYtiles);
-				world.SavePath = worldFile;
+				World.SavePath = worldFile;
 
-				Server.InitializeData(world, properties.MaxPlayers,
+				Server.InitializeData(properties.MaxPlayers,
 					Statics.DataPath + Path.DirectorySeparatorChar + "whitelist.txt",
 					Statics.DataPath + Path.DirectorySeparatorChar + "banlist.txt",
 					Statics.DataPath + Path.DirectorySeparatorChar + "oplist.txt");
 				NetPlay.password = properties.Password;
-                NetPlay.serverPort = properties.Port;
-                NetPlay.serverSIP = properties.ServerIP;
+				NetPlay.serverPort = properties.Port;
+				NetPlay.serverSIP = properties.ServerIP;
 				Terraria_Server.Main.Initialize();
-				
+
 				Terraria_Server.Main.maxTilesX = worldXtiles;
 				Terraria_Server.Main.maxTilesY = worldYtiles;
-                Terraria_Server.Main.maxSectionsX = worldXtiles / 200;
+				Terraria_Server.Main.maxSectionsX = worldXtiles / 200;
 				Terraria_Server.Main.maxSectionsY = worldYtiles / 150;
 
-                WorldIO.LoadWorld(Server.World.SavePath);
-                
-                ctx = new HookContext
-                {
-                    Sender = new WorldSender(),
-                };
+				WorldIO.LoadWorld(null, null, World.SavePath);
 
-                eArgs = new HookArgs.ServerStateChange
-                {
-                    ServerChangeState = ServerState.LOADED
-                };
+				ctx = new HookContext
+				{
+					Sender = World.Sender,
+				};
 
-                HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
+				eArgs = new HookArgs.ServerStateChange
+				{
+					ServerChangeState = ServerState.LOADED
+				};
 
-				updateThread = new ProgramThread ("Updt", Program.UpdateLoop);
+				HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
 
-				ProgramLog.Log ("Starting the Server");
+				updateThread = new ProgramThread("Updt", Program.UpdateLoop);
+
+				ProgramLog.Log(Languages.Startup_StartingTheServer);
 				NetPlay.StartServer();
-				
+
 				while (!NetPlay.ServerUp) { }
 
-				ProgramLog.Console.Print ("You can now insert Commands.");
+				ThreadPool.QueueUserWorkItem(CommandThread);
+				ProgramLog.Console.Print(Languages.Startup_YouCanNowInsertCommands);
+								
+				while (WorldModify.saveLock || NetPlay.ServerUp || Restarting)
+					Thread.Sleep(100);
 
-                while (!Statics.Exit)
+				ProgramLog.Log(Languages.Startup_Exiting);
+				Thread.Sleep(1000);
+			}
+			catch (UpdateCompleted) { }
+			catch (Exception e)
+			{
+				try
 				{
-					try
+					using (StreamWriter streamWriter = new StreamWriter(Statics.DataPath + Path.DirectorySeparatorChar + "crashlog.txt", true))
 					{
-                        string line = Console.ReadLine();
-						if (line.Length > 0)
-						{
-							commandParser.ParseConsoleCommand(line);
-						}
-                    }
-                    catch (ExitException e)
-                    {
-                        ProgramLog.Log(e.Message);
-                        break;
-                    }
-					catch (Exception e)
-					{
-						ProgramLog.Log (e, "Issue parsing console command");
+						streamWriter.WriteLine(DateTime.Now);
+						streamWriter.WriteLine(String.Format("{0} {1}", Languages.Startup_CrashlogGeneratedBy, MODInfo));
+						streamWriter.WriteLine(e);
+						streamWriter.WriteLine();
 					}
+					ProgramLog.Log(e, Languages.Startup_ProgramCrash);
+					ProgramLog.Log("{0} crashlog.txt -> http://tdsm.org/", Languages.Startup_PleaseSend);
 				}
+				catch { }
+			}
 
-                while(WorldModify.saveLock || NetPlay.ServerUp)
-                    Thread.Sleep(100);
+			if (properties != null && File.Exists(properties.PIDFile.Trim()))
+				File.Delete(properties.PIDFile.Trim());
 
-                ProgramLog.Log("Exiting...");
-                Thread.Sleep(1000);
-            }
-            catch (UpdateCompleted)
-            {
-            }
-            catch (Exception e)
-            {
-                try
-                {
-                    using (StreamWriter streamWriter = new StreamWriter(Statics.DataPath + Path.DirectorySeparatorChar + "crashlog.txt", true))
-                    {
-                        streamWriter.WriteLine(DateTime.Now);
-                        streamWriter.WriteLine("Crash Log Generated by TDSM #" + Statics.BUILD + " for " + //+ " r" + Statics.revision + " for " +
-                            VERSION_NUMBER + " {" + Statics.CURRENT_TERRARIA_RELEASE + "}");
-                        streamWriter.WriteLine(e);
-                        streamWriter.WriteLine("");
-                    }
-                    ProgramLog.Log(e, "Program crash");
-                    ProgramLog.Log("Please send crashlog.txt to http://tdsm.org/");
-                }
-                catch
-                {
-                }
-            }
-
-            if (File.Exists(properties.PIDFile.Trim()))
-            {
-                File.Delete(properties.PIDFile.Trim());
-            }
-
-			Thread.Sleep (500);
-			ProgramLog.Log ("Log end.");
+			Thread.Sleep(500);
+			ProgramLog.Log(Languages.Startup_LogEnd);
 			ProgramLog.Close();
-			
-			RemoteConsole.RConServer.Stop ();
+
+			RemoteConsole.RConServer.Stop();
 		}
 
-        private static bool SetupPaths()
+		public static void LoadPlugins()
 		{
-            try
-            {
-                CreateDirectory(Statics.WorldPath);
-                CreateDirectory(Statics.PluginPath);
-                CreateDirectory(Statics.DataPath);
-                CreateDirectory(Statics.LibrariesPath);
+			ProgramLog.Log(Languages.Startup_LoadingPlugins);
+			Terraria_Server.Plugins.PluginManager.Initialize(Statics.PluginPath, Statics.LibrariesPath);
 
-                AppDomain.CurrentDomain.AppendPrivatePath(Statics.LibrariesPath); //For Mono, The config setting doesn't fucking work.
-            }
-            catch (Exception exception)
-            {
-                ProgramLog.Log(exception);
-                ProgramLog.Log("Press any key to continue...");
-                Console.ReadKey(true);
-                return false;
-            }
+			var ctx = new HookContext()
+			{
+				Sender = ConsoleSender = new ConsoleSender()
+			};
+
+			var eArgs = new HookArgs.ServerStateChange()
+			{
+				ServerChangeState = ServerState.INITIALIZING
+			};
+
+			HookPoints.ServerStateChange.Invoke(ref ctx, ref eArgs);
+			PluginManager.LoadPlugins();
+			ProgramLog.Log(Languages.Startup_PluginsLoaded + ' ' + PluginManager.PluginCount);
+		}
+
+		private static void CommandThread(object result)
+		{
+			while (!Statics.Exit || Restarting)
+			{
+				try
+				{
+					string line = Console.ReadLine();
+					if (line.Length > 0)
+					{
+						commandParser.ParseConsoleCommand(line);
+					}
+				}
+				catch (ExitException e)
+				{
+					ProgramLog.Log(e.Message);
+					break;
+				}
+				catch (Exception e)
+				{
+					ProgramLog.Log(e, Languages.Startup_IssueParsingConsoleCommand);
+				}
+			}
+		}
+
+		private static bool SetupPaths()
+		{
+			try
+			{
+				CreateDirectory(Statics.DataPath);
+				CreateDirectory(Statics.WorldPath);
+				CreateDirectory(Statics.PluginPath);
+				CreateDirectory(Statics.LibrariesPath);
+				CreateDirectory(Statics.WorldBackupPath);
+
+#pragma warning disable 618
+				AppDomain.CurrentDomain.AppendPrivatePath(Statics.LibrariesPath); //For Mono, The config setting doesn't fucking work.
+#pragma warning restore 618
+			}
+			catch (Exception exception)
+			{
+				ProgramLog.Log(exception);
+				ProgramLog.Log("Press any key to continue...");
+				Console.ReadKey(true);
+				return false;
+			}
 
 			CreateFile(Statics.DataPath + Path.DirectorySeparatorChar + "whitelist.txt");
 			CreateFile(Statics.DataPath + Path.DirectorySeparatorChar + "banlist.txt");
 			CreateFile(Statics.DataPath + Path.DirectorySeparatorChar + "oplist.txt");
-			CreateFile(Statics.DataPath + Path.DirectorySeparatorChar + "server.log");
 			return true;
 		}
 
-        private static void CreateDirectory(string dirPath)
+		private static void CreateDirectory(string dirPath)
 		{
 			if (!Directory.Exists(dirPath))
 			{
@@ -428,7 +458,7 @@ namespace Terraria_Server
 			}
 		}
 
-        private static bool CreateFile(string filePath)
+		private static bool CreateFile(string filePath)
 		{
 			if (!File.Exists(filePath))
 			{
@@ -438,8 +468,8 @@ namespace Terraria_Server
 				}
 				catch (Exception exception)
 				{
-					ProgramLog.Log (exception);
-					ProgramLog.Log ("Press any key to continue...");
+					ProgramLog.Log(exception);
+					ProgramLog.Log("Press any key to continue...");
 					Console.ReadKey(true);
 					return false;
 				}
@@ -451,368 +481,341 @@ namespace Terraria_Server
 		{
 			properties = new ServerProperties("server.properties");
 			properties.Load();
+
+			properties.AddHeaderLine("TDSM Properties File.");
+			properties.AddHeaderLine("Rejected items need to be seperated by commas ','");
+			properties.AddHeaderLine("For other help visit http://wiki.tdsm.org");
+
 			properties.pushData();
-			properties.Save();
+			properties.Save(false);
 		}
 
-        public static void ParseArgs(string[] args)
-		{
-			if (args != null && args.Length > 0)
-			{
-				for (int i = 0; i < args.Length; i++)
-				{
-					if (i == (args.Length - 1)) { break; }
-                    string commandMessage = args[i].ToLower().Trim();
-					// 0 for Ops
-					if (commandMessage.Equals("-ignoremessages:0"))
-					{
-						Statics.cmdMessages = false;
-					}
-					else if (commandMessage.Equals("-maxplayers"))
-					{
-						try
-						{
-							properties.MaxPlayers = Convert.ToInt32(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-ip"))
-					{
-						properties.ServerIP = args[i + 1];
-					}
-					else if (commandMessage.Equals("-port"))
-					{
-						try
-						{
-							properties.Port = Convert.ToInt32(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-greeting"))
-					{
-						properties.Greeting = args[i + 1];
-					}
-					else if (commandMessage.Equals("-worldpath"))
-					{
-						properties.WorldPath = args[i + 1];
-					}
-					else if (commandMessage.Equals("-password"))
-					{
-						properties.Password = args[i + 1];
-					}
-					else if (commandMessage.Equals("-allowupdates"))
-					{
-						try
-						{
-							properties.AutomaticUpdates = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-npcdoorcancel"))
-					{
-						try
-						{
-							properties.NPCDoorOpenCancel = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-seed"))
-					{
-						try
-						{
-							properties.Seed = args[i + 1];
-						}
-						catch (Exception)
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-mapsize"))
-					{
-						properties.MapSize = args[i + 1];
-					}
-					else if (commandMessage.Equals("-usecustomtiles"))
-					{
-						try
-						{
-							properties.UseCustomTiles = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-maxtilesx"))
-					{
-						try
-						{
-							properties.MaxTilesX = Convert.ToInt32(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-maxtilesy"))
-					{
-						try
-						{
-							properties.MaxTilesY = Convert.ToInt32(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-numdungeons"))
-					{
-						try
-						{
-							properties.DungeonAmount = Convert.ToInt32(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-customworldgen"))
-					{
-						try
-						{
-							properties.UseCustomGenOpts = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-numislands"))
-					{
-						try
-						{
-							properties.FloatingIslandAmount = Convert.ToInt32(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-whitelist"))
-					{
-						try
-						{
-							properties.UseWhiteList = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-pidfile"))
-					{
-						try
-						{
-							properties.PIDFile = args[i + 1];
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-simpleloop"))
-					{
-						try
-						{
-							properties.SimpleLoop = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-windowsoutput"))
-					{
-						Platform.Type = Platform.PlatformType.WINDOWS;
-						try
-						{
-							bool windows = Convert.ToBoolean(args[i + 1]);
-							if (!windows)
-							{
-								Platform.Type = Platform.PlatformType.LINUX;
-							}
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-hackeddata"))
-					{
-						try
-						{
-							properties.HackedData = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-rconip"))
-					{
-						try
-						{
-							properties.RConBindAddress = args[i + 1];
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-rconsalt"))
-					{
-						try
-						{
-							properties.RConHashNonce = args[i + 1];
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-rotatelog"))
-					{
-						try
-						{
-							properties.LogRotation = Convert.ToBoolean(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-					else if (commandMessage.Equals("-spawnnpcmax"))
-					{
-						try
-						{
-							properties.SpawnNPCMax = Convert.ToInt16(args[i + 1]);
-						}
-						catch
-						{
-
-						}
-					}
-
-                    //explosions
-                    //rejectplayeritems
-				}
-
-				properties.Save();
-			}
-		}
-		
-		public static TimeSpan LastUpdateTime { get; private set; }
-		
-		public static void UpdateLoop()
+		public static void ParseArgs(string[] args)
 		{
 			try
 			{
-                if (Terraria_Server.Main.rand == null)
-                    Terraria_Server.Main.rand = new Random((int)DateTime.Now.Ticks);
-				
-				bool hibernate = properties.StopUpdatesWhenEmpty;
-	
-				if (properties.SimpleLoop)
+				if (args != null && args.Length > 0)
 				{
-					Stopwatch s = new Stopwatch();
-					s.Start();
-	
-					double updateTime = 16.66666666666667;
-					double nextUpdate = s.ElapsedMilliseconds + updateTime;
-	
-					while (!NetPlay.disconnect)
+					for (int i = 0; i < args.Length; i++)
 					{
-						double now = s.ElapsedMilliseconds;
-						double left = nextUpdate - now;
-	
-						if (left >= 0)
+						//if (i == (args.Length - 1) && args.Length > 1) { break; }
+						string commandMessage = args[i].ToLower().Trim();
+						// 0 for Ops
+						if (commandMessage.Equals("-ignoremessages:0"))
 						{
-							while (left > 1)
+							Statics.cmdMessages = false;
+						}
+						else if (commandMessage.Equals("-maxplayers"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.MaxPlayers = val;
+						}
+						else if (commandMessage.Equals("-ip"))
+						{
+							properties.ServerIP = args[i + 1];
+						}
+						else if (commandMessage.Equals("-port"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.Port = val;
+						}
+						else if (commandMessage.Equals("-greeting"))
+						{
+							properties.Greeting = args[i + 1];
+						}
+						else if (commandMessage.Equals("-worldpath"))
+						{
+							properties.WorldPath = args[i + 1];
+						}
+						else if (commandMessage.Equals("-password"))
+						{
+							properties.Password = args[i + 1];
+						}
+						else if (commandMessage.Equals("-allowupdates"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.AutomaticUpdates = val;
+						}
+						else if (commandMessage.Equals("-npcdoorcancel"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.NPCDoorOpenCancel = val;
+						}
+						else if (commandMessage.Equals("-seed"))
+						{
+							try
 							{
-								Thread.Sleep((int)left);
-								left = nextUpdate - s.ElapsedMilliseconds;
+								properties.Seed = args[i + 1];
 							}
-							nextUpdate += updateTime;
+							catch (Exception)
+							{ }
 						}
-						else
-							nextUpdate = now + updateTime;
-	
-						if (NetPlay.anyClients || (hibernate == false))
+						else if (commandMessage.Equals("-mapsize"))
 						{
-							var start = s.Elapsed;
-                            Terraria_Server.Main.Update(s);
-							LastUpdateTime = s.Elapsed - start;
+							properties.MapSize = args[i + 1];
 						}
+						else if (commandMessage.Equals("-usecustomtiles"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.UseCustomTiles = val;
+						}
+						else if (commandMessage.Equals("-maxtilesx"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.MaxTilesX = val;
+						}
+						else if (commandMessage.Equals("-maxtilesy"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.MaxTilesY = val;
+						}
+						else if (commandMessage.Equals("-numdungeons"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.DungeonAmount = val;
+						}
+						else if (commandMessage.Equals("-customworldgen"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.UseCustomGenOpts = val;
+						}
+						else if (commandMessage.Equals("-numislands"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.FloatingIslandAmount = val;
+						}
+						else if (commandMessage.Equals("-whitelist"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.UseWhiteList = val;
+						}
+						else if (commandMessage.Equals("-pidfile"))
+						{
+							try
+							{
+								properties.PIDFile = args[i + 1];
+							}
+							catch { }
+						}
+						else if (commandMessage.Equals("-simpleloop"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.SimpleLoop = val;
+						}
+						else if (commandMessage.Equals("-windowsoutput"))
+						{
+							Platform.Type = Platform.PlatformType.WINDOWS;
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val) && !val)
+								Platform.Type = Platform.PlatformType.LINUX;
+						}
+						else if (commandMessage.Equals("-hackeddata"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.HackedData = val;
+						}
+						else if (commandMessage.Equals("-rconip"))
+						{
+							try
+							{
+								properties.RConBindAddress = args[i + 1];
+							}
+							catch { }
+						}
+						else if (commandMessage.Equals("-rconsalt"))
+						{
+							try
+							{
+								properties.RConHashNonce = args[i + 1];
+							}
+							catch { }
+						}
+						else if (commandMessage.Equals("-rotatelog"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.LogRotation = val;
+						}
+						else if (commandMessage.Equals("-spawnnpcmax"))
+						{
+							int val;
+							if (Int32.TryParse(args[i + 1], out val))
+								properties.SpawnNPCMax = val;
+						}
+						else if (commandMessage.Equals("-disablemaxplayers"))
+							SlotManager.MaxPlayersDisabled = true;
+						else if (commandMessage.Equals("-allowexplosions"))
+						{
+							bool val;
+							if (Boolean.TryParse(args[i + 1], out val))
+								properties.AllowExplosions = val;
+						}
+						else if (commandMessage.Equals("-rejectitems"))
+							properties.RejectedItems = args[i + 1];
 					}
-	
-					return;
+
+					properties.Save();
 				}
-	
-				double serverProcessAverage = 16.666666666666668;
-				double leftOver = 0.0;
-	
-				Stopwatch stopwatch = new Stopwatch();
-				stopwatch.Start();
-	
+			}
+			catch (Exception e)
+			{
+				ProgramLog.Log(e);
+			}
+		}
+
+		public static TimeSpan LastUpdateTime { get; private set; }
+
+		public static void UpdateLoop()
+		{
+#if CATCHERROR_UPDATELOOP
+			try
+			{
+#endif
+			if (Terraria_Server.Main.rand == null)
+				Terraria_Server.Main.rand = new Random((int)DateTime.Now.Ticks);
+
+			bool hibernate = properties.StopUpdatesWhenEmpty, backup = false;
+			int collect = 0, backupInterval = properties.BackupInterval;
+			DateTime backupDate = DateTime.Now;
+
+			if (backupInterval > 0)
+				backup = properties.AllowBackups;
+
+			if (properties.SimpleLoop)
+			{
+				Stopwatch s = new Stopwatch();
+				s.Start();
+
+				double updateTime = 16.66666666666667;
+				double nextUpdate = s.ElapsedMilliseconds + updateTime;
 				while (!NetPlay.disconnect)
 				{
-					double elapsed = (double)stopwatch.ElapsedMilliseconds;
-					if (elapsed + leftOver >= serverProcessAverage)
+					double now = s.ElapsedMilliseconds;
+					double left = nextUpdate - now;
+
+					if (left >= 0)
 					{
-						leftOver += elapsed - serverProcessAverage;
-						stopwatch.Reset();
-						stopwatch.Start();
-	
-						if (leftOver > 1000.0)
-                            leftOver = 1000.0;
-
-						if (NetPlay.anyClients || (hibernate == false))
-                            Terraria_Server.Main.Update(stopwatch);
-
-						double num9 = (double)stopwatch.ElapsedMilliseconds + leftOver;
-						if (num9 < serverProcessAverage)
+						while (left > 1)
 						{
-							int num10 = (int)(serverProcessAverage - num9) - 1;
-							if (num10 > 1)
+							Thread.Sleep((int)left);
+							left = nextUpdate - s.ElapsedMilliseconds;
+						}
+						nextUpdate += updateTime;
+					}
+					else
+						nextUpdate = now + updateTime;
+
+					if (NetPlay.anyClients || (hibernate == false))
+					{
+						var start = s.Elapsed;
+						Terraria_Server.Main.Update(s);
+						LastUpdateTime = s.Elapsed - start;
+					}
+
+					if (collect++ >= 1000) //Every 1000 loops should be less intensive.
+					{
+						if (properties.CollectGarbage)
+							GC.Collect();
+
+						collect = 0;
+					}
+
+					if ((DateTime.Now - backupDate).TotalMinutes >= backupInterval && backup)
+					{
+						backupDate = DateTime.Now;
+
+						try
+						{
+							BackupManager.AutoPurge();
+							BackupManager.PerformBackup();
+						}
+						catch (Exception e)
+						{
+							ProgramLog.Error.Log(
+								String.Format("Error during the backup process.\n{0}", e)
+							);
+						}
+					}
+				}
+
+				return;
+			}
+
+			double serverProcessAverage = 16.666666666666668;
+			double leftOver = 0.0;
+
+			Stopwatch stopwatch = new Stopwatch();
+			stopwatch.Start();
+
+			while (!NetPlay.disconnect)
+			{
+				double elapsed = (double)stopwatch.ElapsedMilliseconds;
+				if (elapsed + leftOver >= serverProcessAverage)
+				{
+					leftOver += elapsed - serverProcessAverage;
+					stopwatch.Reset();
+					stopwatch.Start();
+
+					if (leftOver > 1000.0)
+						leftOver = 1000.0;
+
+					if (NetPlay.anyClients || (hibernate == false))
+						Terraria_Server.Main.Update(stopwatch);
+
+					double num9 = (double)stopwatch.ElapsedMilliseconds + leftOver;
+					if (num9 < serverProcessAverage)
+					{
+						int num10 = (int)(serverProcessAverage - num9) - 1;
+						if (num10 > 1)
+						{
+							Thread.Sleep(num10);
+							if (hibernate && !NetPlay.anyClients)
 							{
-								Thread.Sleep(num10);
-								if (hibernate && !NetPlay.anyClients)
-								{
-									leftOver = 0.0;
-									Thread.Sleep(10);
-								}
+								leftOver = 0.0;
+								Thread.Sleep(10);
 							}
 						}
 					}
-					Thread.Sleep(0);
+
+					if (collect++ >= 1000) //Every 1000 loops should be less intensive.
+					{
+						if (properties.CollectGarbage)
+							GC.Collect();
+
+						collect = 0;
+					}
+
+					if ((DateTime.Now - backupDate).TotalMinutes >= backupInterval && backup)
+					{
+						backupDate = DateTime.Now;
+
+						ProgramLog.Log("Performing backup...");
+						BackupManager.PerformBackup();
+					}
 				}
+				Thread.Sleep(0);
+			}
+
+#if CATCHERROR_UPDATELOOP
 			}
 			catch (Exception e)
 			{
 				ProgramLog.Log (e, "World update thread crashed");
 			}
+#endif
 		}
-
 	}
 }

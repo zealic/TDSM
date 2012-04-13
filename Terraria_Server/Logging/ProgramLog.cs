@@ -28,7 +28,7 @@ namespace Terraria_Server.Logging
 		
 		public static readonly LogChannel Users = new LogChannel ("USR", ConsoleColor.Magenta);
 		public static readonly LogChannel Chat  = new LogChannel ("CHT", ConsoleColor.DarkMagenta);
-		public static readonly LogChannel Death = new LogChannel ("DTH", ConsoleColor.DarkRed);
+		public static readonly LogChannel Death = new LogChannel ("DTH", ConsoleColor.Green);
 		public static readonly LogChannel Admin = new LogChannel ("ADM", ConsoleColor.Yellow);
         public static readonly LogChannel Error = new LogChannel("ERR", ConsoleColor.Red);
         public static readonly LogChannel Debug = new LogChannel("DBG", ConsoleColor.DarkGray);
@@ -42,8 +42,9 @@ namespace Terraria_Server.Logging
 			public object     args;
 			public LogTarget  target;
 			public LogChannel channel;
+			public SendingLogger logger;
 			
-			public LogEntry (object message, object args)
+			public LogEntry (object message, object args, SendingLogger logger = SendingLogger.CONSOLE)
 			{
 				this.target = null;
 				this.thread = Thread.CurrentThread;
@@ -51,9 +52,10 @@ namespace Terraria_Server.Logging
 				this.message = message;
 				this.args = args;
 				this.channel = null;
+				this.logger = logger;
 			}
 		}
-		
+
 		static List<LogTarget> logTargets = new List<LogTarget> ();
 		
 		public static void OpenLogFile (string path)
@@ -122,9 +124,14 @@ namespace Terraria_Server.Logging
 			Write (new LogEntry { message = format, args = args, thread = Thread.CurrentThread, channel = channel });
 		}
 
-		public static void Log (string text)
+		public static void Log(string text)
 		{
-			Write (new LogEntry (text, null));
+			Write(new LogEntry(text, null));
+		}
+
+		public static void Log(string text, SendingLogger logger)
+		{
+			Write(new LogEntry(text, null) { logger = logger });
 		}
 		
 		public static void Log (string format, params object[] args)
@@ -132,14 +139,27 @@ namespace Terraria_Server.Logging
 			Write (new LogEntry (format, args));
 		}
 		
-		public static void Log (LogChannel channel, string text)
+		public static void Log (LogChannel channel, string text, bool multi = false)
 		{
-			Write (new LogEntry (text, null) { channel = channel });
+			if (!multi)
+				Write(new LogEntry(text, null) { channel = channel });
+			else
+			{
+				var split = text.Split('\n');
+
+				foreach (var line in split)
+					Write(new LogEntry(line, null) { channel = channel });
+			}
 		}
-		
-		public static void Log (LogChannel channel, string format, params object[] args)
+
+		public static void Log(LogChannel channel, string format, params object[] args)
 		{
-			Write (new LogEntry (format, args) { channel = channel });
+			Write(new LogEntry(format, args) { channel = channel });
+		}
+
+		public static void Log(LogChannel channel, string format, SendingLogger logger, params object[] args)
+		{
+			Write(new LogEntry(format, args) { channel = channel, logger = logger });
 		}
 		
 		public static void Log (Exception e)
@@ -188,6 +208,8 @@ namespace Terraria_Server.Logging
 			
 			if (entry.channel != null)
 				output.color = entry.channel.Color;
+
+			output.logger = entry.logger;
 			
 			try
 			{

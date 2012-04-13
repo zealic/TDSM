@@ -41,10 +41,15 @@ namespace RestrictPlugin
 		{
 			get { return properties.getValue ("restrict-guests", true); }
 		}
-		
+
 		bool restrictGuestsDoors
 		{
-			get { return properties.getValue ("restrict-guests-doors", true); }
+			get { return properties.getValue("restrict-guests-doors", true); }
+		}
+
+		bool restrictGuestsNPCs
+		{
+			get { return properties.getValue("restrict-guests-npcs", true); }
 		}
         		
 		string serverId
@@ -54,8 +59,9 @@ namespace RestrictPlugin
 
         public Node ChestBreak;
         public Node ChestOpen;
-        public Node DoorChange;
-        public Node LiquidFlow;
+		public Node DoorChange;
+		public Node LiquidFlow;
+		public Node NpcHurt;
         public Node ProjectileUse;
         public Node SignEdit;
         public Node WorldAlter;
@@ -65,8 +71,8 @@ namespace RestrictPlugin
 			Name = "Restrict";
 			Description = "Restrict access to the server or character names.";
 			Author = "UndeadMiner";
-			Version = "0.36.0";
-			TDSMBuild = 36;
+			Version = "0.38.0";
+			TDSMBuild = 38;
 		}
 		       
 		protected override void Initialized (object state)
@@ -86,6 +92,7 @@ namespace RestrictPlugin
 			var dummy2 = restrictGuests;
 			var dummy3 = restrictGuestsDoors;
 			var dummy4 = serverId;
+			var dummy5 = restrictGuestsNPCs;
 			properties.Save(false);
 			
 			users = new PropertiesFile (pluginFolder + Path.DirectorySeparatorChar + "restrict_users.properties");
@@ -105,7 +112,6 @@ namespace RestrictPlugin
 				.WithHelpText ("    -f    force action even if player isn't online")
                 .WithPermissionNode("restrict.ru")
 				.Calls (LockUsers<ISender, ArgumentList>(this.RegisterCommand));
-
 			
 			AddCommand ("ur")
 				.WithDescription ("Unregister users")
@@ -159,6 +165,7 @@ namespace RestrictPlugin
             ChestOpen       = AddAndCreateNode("restrict.chestopen");
             DoorChange      = AddAndCreateNode("restrict.doorchange");
             LiquidFlow      = AddAndCreateNode("restrict.liquidflow");
+            NpcHurt			= AddAndCreateNode("restrict.npchurt");
             ProjectileUse   = AddAndCreateNode("restrict.projectileuse");
             SignEdit        = AddAndCreateNode("restrict.signedit");
             WorldAlter      = AddAndCreateNode("restrict.worldalter");
@@ -182,12 +189,12 @@ namespace RestrictPlugin
 		
 		protected override void Enabled ()
 		{
-			ProgramLog.Log(base.Name + " enabled.");
+			ProgramLog.Plugin.Log(base.Name + " enabled.");
 		}
 		
 		protected override void Disabled ()
 		{
-			ProgramLog.Log(base.Name + " disabled.");
+			ProgramLog.Plugin.Log(base.Name + " disabled.");
 		}
 		
 		[Hook(HookOrder.EARLY)]
@@ -266,7 +273,7 @@ namespace RestrictPlugin
 			{
 				entry = users.getValue (pname) ?? users.getValue (oname);
 			}
-			
+						
 			if (entry == null)
 			{
 				if (allowGuests)
@@ -283,7 +290,9 @@ namespace RestrictPlugin
 			
 			var split = entry.Split (':');
 			var hash  = split[0];
-			var hash2 = Hash (name, args.Password);
+			var hash2 = Hash(name, args.Password);
+
+			String.Format("User: {0}, Pass: {1}, Hash: {3}, Hash2: {2}", name, args.Password, hash2, hash);
 			
 			if (hash != hash2)
 			{
@@ -544,6 +553,28 @@ namespace RestrictPlugin
                 player.sendMessage("<Restrict> You are not allowed to open and close doors without permissions.");
             }
         }
+
+		[Hook(HookOrder.EARLY)]
+		void OnNPCHurt(ref HookContext ctx, ref HookArgs.NpcHurt args)
+		{
+			if ((!restrictGuests) || (!restrictGuestsNPCs)) return;
+
+			var player = ctx.Player;
+
+			if (player == null) return;
+
+			if (player.AuthenticatedAs == null)
+			{
+				ctx.SetResult(HookResult.IGNORE);
+				player.sendMessage("<Restrict> You are not allowed to hurt NPCs as a guest.");
+				player.sendMessage("<Restrict> Type \"/reg password\" to request registration.");
+			}
+			else if (IsRestrictedForUser(ctx.Player, NpcHurt))
+			{
+				ctx.SetResult(HookResult.IGNORE);
+				player.sendMessage("<Restrict> You are not allowed to hurt NPCs without permissions.");
+			}
+		}
 
 #region Permissions
         public bool IsRunningPermissions()

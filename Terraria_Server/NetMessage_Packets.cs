@@ -6,6 +6,7 @@ using Terraria_Server.Commands;
 using Terraria_Server.Messages;
 using Terraria_Server.Misc;
 using Terraria_Server.WorldMod;
+using Terraria_Server.Logging;
 
 namespace Terraria_Server
 {
@@ -97,7 +98,7 @@ namespace Terraria_Server
 			
 			Byte (prefix);
 			
-			Byte (item.NetID);
+			Short (item.NetID);
 			
 			End ();
 		}
@@ -106,42 +107,54 @@ namespace Terraria_Server
 		{
 			Header (Packet.WORLD_REQUEST, 0);
 		}
-		
-		public void WorldData (int spawnX, int spawnY)
+
+		public void WorldData(int spawnX, int spawnY, bool hardMode)
 		{
-			Begin (Packet.WORLD_DATA);
-			
-			Int (Main.time);
-			Byte (Main.dayTime);
-			Byte (Main.moonPhase);
-			Byte (Main.bloodMoon);
-			
-			Int (Main.maxTilesX);
-			Int (Main.maxTilesY);
-			Int (spawnX);
-			Int (spawnY);
-			
-			Int (Main.worldSurface);
-			Int (Main.rockLayer);
-			Int (Main.worldID);
-			
+			Begin(Packet.WORLD_DATA);
+
+			Int(Main.Time);
+			Byte(Main.dayTime);
+			Byte(Main.moonPhase);
+			Byte(Main.bloodMoon);
+
+			Int(Main.maxTilesX);
+			Int(Main.maxTilesY);
+			Int(spawnX);
+			Int(spawnY);
+
+			Int(Main.worldSurface);
+			Int(Main.rockLayer);
+			Int(Main.worldID);
+
 			byte flags = 0;
-			
+
 			if (WorldModify.shadowOrbSmashed) flags += 1;
-			if (NPC.downedBoss1)           flags += 2;
-			if (NPC.downedBoss2)           flags += 4;
-			if (NPC.downedBoss3)           flags += 8;
-			
-			Byte (flags);
-			
-			String (Main.worldName);
-			
-			End ();
+			if (NPC.downedBoss1) flags += 2;
+			if (NPC.downedBoss2) flags += 4;
+			if (NPC.downedBoss3) flags += 8;
+			if (hardMode) flags += 16;
+			if (NPC.downedClown) flags += 32;
+
+			Byte(flags);
+
+			String(Main.worldName);
+
+			End();
 		}
-		
-		public void WorldData ()
+
+		public void WorldData(int spawnX, int spawnY)
 		{
-			WorldData (Main.spawnTileX, Main.spawnTileY);
+			WorldData(spawnX, spawnY, Main.hardMode);
+		}
+
+		public void WorldData()
+		{
+			WorldData(Main.spawnTileX, Main.spawnTileY);
+		}
+
+		public void WorldData(bool hardMode)
+		{
+			WorldData(Main.spawnTileX, Main.spawnTileY, hardMode);
 		}
 		
 		public void RequestTileBlock ()
@@ -369,9 +382,7 @@ namespace Terraria_Server
 				var tile = Main.tile.At (col, row).Data;
 				
 				Tile (tile);
-				Short (0);
-				
-				continue; //FIXME: make this work
+								
 				int run = 0;
 				
 				for (int i = col + 1; i < firstColumn + numColumns; i++)
@@ -397,6 +408,7 @@ namespace Terraria_Server
 				}
 				
 				Short (run);
+				col += run;
 			}
 			
 			End ();
@@ -492,17 +504,18 @@ namespace Terraria_Server
 			End ();
 		}
 		
-		public void SynchBegin (int foo, int bar)
+		public void SynchBegin (int playerId, int active)
 		{
 			Header (Packet.SYNCH_BEGIN, 2);
-			
-			Byte (foo);
-			Byte (bar);
+
+			Byte(playerId);
+			Byte(active);
 		}
 		
 		public void UpdatePlayers ()
 		{
-			Header (Packet.UPDATE_PLAYERS, 0);
+			//Header (Packet.UPDATE_PLAYERS, 0);
+			throw new NotImplementedException("NetMessage.UpdatePlayers()");
 		}
 		
 		public void PlayerHealthUpdate (int playerId)
@@ -516,7 +529,7 @@ namespace Terraria_Server
 			Short (player.statLifeMax);
 		}
 		
-		public void TileBreak (int tileAction, int x, int y, int tileType = 0, int number5 = 0)
+		public void TileBreak (int tileAction, int x, int y, int tileType = 0, int style = 0)
 		{
 			Header (Packet.TILE_BREAK, 11);
 			
@@ -524,7 +537,7 @@ namespace Terraria_Server
 			Int (x);
 			Int (y);
 			Byte (tileType);
-			Byte (number5);
+			Byte (style);
 		}
 		
 		public void TimeSunMoonUpdate ()
@@ -629,12 +642,15 @@ namespace Terraria_Server
 			if (npc.Active)
 				Int (npc.life);
 			else
-				Int (0);
+				Int(0);
+
+			if (!npc.Active || npc.life <= 0)
+				npc.netSkip = 0;
 			
 			for (int i = 0; i < NPC.MAX_AI; i++)
 				Float (npc.ai[i]);
 			
-			Short (npc.NetID);
+			Int (npc.NetID);
 			
 			End ();
 		}
@@ -655,8 +671,8 @@ namespace Terraria_Server
 			Byte (r);
 			Byte (g);
 			Byte (b);
-			
-			String (text);
+
+			String (text ?? System.String.Empty);
 			
 			End ();
 		}
@@ -926,7 +942,7 @@ namespace Terraria_Server
 			Int (sign.x);
 			Int (sign.y);
 			
-			String (sign.text);
+			String (sign.text, true);
 			
 			End ();
 		}
@@ -939,7 +955,7 @@ namespace Terraria_Server
 			Int (x);
 			Int (y);
 			
-			String (text);
+			String (text, true);
 			
 			End ();
 		}
@@ -1082,8 +1098,6 @@ namespace Terraria_Server
 
             //Tell whether RPG is allowed.
             Int((Server.AllowTDCMRPG) ? 1 : 0);
-
-            End();
         }
 
         public void RpgNPCSpawned(int npcId)
@@ -1091,8 +1105,15 @@ namespace Terraria_Server
             Header(Packet.CLIENT_MOD_SPAWN_NPC, 4);
 
             Int(npcId);
-
-            End();
         }
+
+		public void SpawnNPC(int PlayerId, int NPCId) //Can do invasion too (-1)
+		{
+			/*Header(Packet.SPAWN_NPCS, 8);
+
+			Int(PlayerId);
+			Int(NPCId);*/
+			throw new Exception("NetMessage.SpawnNPC");
+		}
 	}
 }

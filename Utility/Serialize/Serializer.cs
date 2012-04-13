@@ -1,10 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Xml;
-using Terraria_Server.Collections;
 using System.Reflection;
-using Terraria_Server;
-using Terraria_Server.Definitions;
 using System.Threading;
 using Mono.Cecil;
 using System.Collections.Generic;
@@ -29,7 +26,11 @@ namespace Terraria_Utilities.Serialize
         /// <param name="SetDefaults"></param>
         /// <param name="invokeType"></param>
         /// <param name="input"></param>
-        public static Dictionary<Int32, String> Serialize(Type type, string[] ignoreFields, MethodInfo SetDefaults, InvokeType invokeType = InvokeType.ITEM_NPC, string[] inputs = null, int MaxObjects = 1000)
+        public static Dictionary<Int32, String> Serialize(
+			Type type, string[] ignoreFields, MethodInfo SetDefaults, 
+			InvokeType invokeType = InvokeType.ITEM_NPC, 
+			string[] inputs = null, int MaxObjects = 1000,
+			bool NPCOverride = false)
         {
             var FilePath = (invokeType == InvokeType.ITEM_NPC_BY_NAME) ? type.Name + "sByName.xml" : type.Name + "s.xml";
             if (File.Exists(FilePath))
@@ -88,7 +89,15 @@ namespace Terraria_Utilities.Serialize
                     Console.WriteLine("Processing `{0}`...", value);
                     serializer.WriteObject(writer, obj);
                     count++;
-                    returnData.Add(count, value);
+
+					if (obj is Terraria.NPC)
+					{
+						var npc = obj as Terraria.NPC;
+						if(!returnData.ContainsKey(npc.type))
+							returnData.Add(npc.type, value);
+					}
+					else
+						returnData.Add(count, value);
                 }
                 Thread.Sleep(5);
             }

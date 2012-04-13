@@ -2,9 +2,8 @@ using System;
 
 namespace Terraria_Server
 {
-    public class Sign
+    public struct Sign
     {
-        public const int MAX_SIGNS = 1000;
         public int x;
         public int y;
         public string text;
@@ -16,12 +15,11 @@ namespace Terraria_Server
 
         public static void KillSign(int x, int y)
         {
-
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < Main.MAX_SIGNS; i++)
             {
-                if (Main.sign[i] != null && Main.sign[i].x == x && Main.sign[i].y == y)
+                if (Main.sign[i] != default(Sign) && Main.sign[i].x == x && Main.sign[i].y == y)
                 {
-                    Main.sign[i] = null;
+					Main.sign[i] = default(Sign);
                 }
             }
         }
@@ -42,7 +40,7 @@ namespace Terraria_Server
                 return -1;
             }
             int num4 = -1;
-            for (int l = 0; l < 1000; l++)
+			for (int l = 0; l < Main.MAX_SIGNS; l++)
             {
                 if (Main.sign[l] != null && Main.sign[l].x == num2 && Main.sign[l].y == num3)
                 {
@@ -52,9 +50,9 @@ namespace Terraria_Server
             }
             if (num4 < 0)
             {
-                for (int m = 0; m < 1000; m++)
+				for (int m = 0; m < Main.MAX_SIGNS; m++)
                 {
-                    if (Main.sign[m] == null)
+					if (Main.sign[m] == default(Sign))
                     {
                         num4 = m;
                         Main.sign[m] = new Sign();
@@ -67,14 +65,44 @@ namespace Terraria_Server
             }
             return num4;
         }
+
         public static void TextSign(int i, string text)
         {
             if (!Main.tile.At(Main.sign[i].x, Main.sign[i].y).Active || (Main.tile.At(Main.sign[i].x, Main.sign[i].y).Type != 55 && Main.tile.At(Main.sign[i].x, Main.sign[i].y).Type != 85))
             {
-                Main.sign[i] = null;
+                Main.sign[i] = default(Sign);
                 return;
             }
             Main.sign[i].text = text;
         }
+
+		public static bool operator !=(Sign sign1, Sign sign2)
+		{
+			return 
+				sign1.text != sign2.text ||
+				sign1.x != sign2.x ||
+				sign1.y != sign2.y;
+		}
+
+		public static bool operator ==(Sign sign1, Sign sign2)
+		{
+			return
+				sign1.text == sign2.text &&
+				sign1.x == sign2.x &&
+				sign1.y == sign2.y;
+		}
+
+		public override bool Equals(object obj)
+		{
+			if (obj is Sign)
+				return ((Sign)obj) == this;
+
+			return false;
+		}
+
+		public override int GetHashCode()
+		{
+			return base.GetHashCode();
+		}
     }
 }

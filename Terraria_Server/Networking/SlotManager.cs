@@ -48,8 +48,8 @@ namespace Terraria_Server.Networking
 			
 			if (overlimitSlots < 0) overlimitSlots = 0;
 			else if (overlimitSlots > maxSlots) overlimitSlots = maxSlots;
-			
-			ProgramLog.Log ("Initializing slot manager for {0}+{1} players.", maxSlots, overlimitSlots);
+
+			ProgramLog.Log("{2} {0}+{1} {3}.", maxSlots, overlimitSlots, Language.Languages.InitializingSlotManagerFor, Language.Languages.Players);
 			
 			lock (syncRoot)
 			{
@@ -429,9 +429,16 @@ namespace Terraria_Server.Networking
 			
 			return String.Format (waitingMessage, i, suffix);
 		}
-		
+
+		public static bool MaxPlayersDisabled = false;
 		internal static void MaxPlayersCommand (ISender sender, ArgumentList args)
 		{
+			if (MaxPlayersDisabled)
+			{
+				sender.Message (255, "This command has been disabled.");
+				return;
+			}
+
 			int maxp = -1;
 			int overl = -1;
 			
@@ -458,7 +465,9 @@ namespace Terraria_Server.Networking
 			if (maxp >= 0 || overl >= 0)
 			{
 				result = ChangeLimits (maxp < 0 ? maxSlots : maxp, overl < 0 ? overlimitSlots : overl);
-                Server.notifyOps(String.Format("Max player slots changed to {0}+{1}. [{2}]", result, overlimitSlots, sender.Name));
+				Server.notifyOps(
+					String.Format("Max player slots changed to {0}+{1}. [{2}]", result, overlimitSlots, sender.Name)
+				);
 			}
 			
 			sender.Message (255, ChatColor.SteelBlue, "Max player slots: {0}, overlimit slots: {1}", result, overlimitSlots);

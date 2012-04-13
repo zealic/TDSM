@@ -87,11 +87,16 @@ namespace Terraria_Server.Messages
             for (int npcIndex = 0; npcIndex < NPC.MAX_NPCS; npcIndex++)
             {
                 if (Main.npcs[npcIndex].Active)
-                {
-                    NetMessage.SendData(23, whoAmI, -1, "", npcIndex);
-                }
+					NetMessage.SendData(23, whoAmI, -1, "", npcIndex);
             }
+
             NetMessage.SendData(49, whoAmI);
+			NetMessage.SendData(57, whoAmI);
+
+			//Send NPC Names...
+
+			foreach (var npcId in new int[] { 17, 18, 19, 20, 22, 38, 54, 107, 108, 124 })
+				NetMessage.SendData(56, whoAmI, -1, String.Empty, npcId);
         }
     }
 }

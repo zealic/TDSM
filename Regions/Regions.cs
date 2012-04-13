@@ -10,7 +10,6 @@ using Terraria_Server.Logging;
 using Terraria_Server.Commands;
 using Terraria_Server.Definitions;
 using Terraria_Server.Permissions;
-using Terraria_Server.Definitions.Tile;
 
 using Regions.RegionWork;
 using Terraria_Server.Plugins;
@@ -21,13 +20,6 @@ namespace Regions
 {
     public class Regions : BasePlugin
     {
-        /*
-         * @Developers
-         * 
-         * Plugins need to be in .NET 4.0
-         * Otherwise TDSM will be unable to load it. 
-         */
-
         public static int SelectorItem = 0;
         public static bool UsingPermissions = false;
 
@@ -36,8 +28,8 @@ namespace Regions
             base.Name = "Regions";
             base.Description = "A region plugin for TDSM";
             base.Author = "DeathCradle";
-            base.Version = "6";
-            base.TDSMBuild = 36;
+            base.Version = "8";
+            base.TDSMBuild = 38;
         }
 
         public static string RegionsFolder

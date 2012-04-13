@@ -40,11 +40,11 @@ namespace Terraria_Server.Messages
                 player.OldSpawnY = player.SpawnY;
             }
 
-            player.SpawnX = BitConverter.ToInt32(readBuffer, num);
+			player.SpawnX = BitConverter.ToInt32(readBuffer, num);
             num += 4;
-            player.SpawnY = BitConverter.ToInt32(readBuffer, num);
+			player.SpawnY = BitConverter.ToInt32(readBuffer, num);
             num += 4;
-            player.Spawn();
+            player.Spawn(null, null);
             
             //ProgramLog.Debug.Log ("sx: {0}, sy: {1}, tx: {2}, ty: {3}", player.SpawnX, player.SpawnY, player.TeleSpawnX, player.TeleSpawnY);
             
