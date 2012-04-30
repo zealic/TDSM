@@ -5,6 +5,9 @@ using System.Text;
 using Terraria_Server.Logging;
 using System.IO;
 using Terraria_Server.Misc;
+using System.Data;
+
+using MySql.Data.MySqlClient;
 
 namespace Regions.RegionWork
 {
@@ -12,11 +15,15 @@ namespace Regions.RegionWork
     {
         public List<Region> Regions { get; set; }
         private string SaveFolder { get; set; }
+        private bool mysqlenabled;
+        private string connectionString;
 
-        public RegionManager(string saveFolder)
+        public RegionManager(string saveFolder, bool mysqlenabled, string connectionString)
         {
             SaveFolder = saveFolder;
+            this.mysqlenabled = mysqlenabled;
 			Regions = new List<Region>();
+            this.connectionString = connectionString;
 
             if (!Directory.Exists(saveFolder))
                 Directory.CreateDirectory(saveFolder);
@@ -25,8 +32,27 @@ namespace Regions.RegionWork
         public void LoadRegions()
         {
             ProgramLog.Plugin.Log("Loading Regions.");
-            Regions = LoadRegions(SaveFolder);
+            if (mysqlenabled)
+            {
+                Regions = LoadMysqlRegions();
+            }
+            else
+            {
+                Regions = LoadRegions(SaveFolder);
+            }
             ProgramLog.Plugin.Log("Loaded {0} Regions.", Regions.Count);
+        }
+
+        public int import()
+        {
+            List<Region> Regions = LoadRegions(SaveFolder);
+            int count = 0;
+            foreach (Region r in Regions)
+            {
+                SaveRegion(r);
+                count++;
+            }
+            return count;
         }
 
         public bool SaveRegion(Region region)
@@ -36,17 +62,53 @@ namespace Regions.RegionWork
             {
                 if (region != null && region.IsValidRegion())
                 {
-                    string file = SaveFolder + Path.DirectorySeparatorChar + region.Name + ".rgn";
+                    if (mysqlenabled)
+                    {
+                        string regionname = region.Name.Replace("'", @"\'");
+                        string regiondesc = region.Description.Replace("'", @"\'");	
+                        string point1 = region.Point1.X + "," + region.Point1.Y;
+                        string point2 = region.Point2.X + "," + region.Point2.Y;
+                        string userList = region.UserListToString().Replace("'", @"\'");	
+                        string projectileList = region.ProjectileListToString().Replace("'", @"\'");	
+                        string sql = "";
+                        IDbConnection dbcon;
+                        dbcon = new MySqlConnection(connectionString);
+                        dbcon.Open();
+                        IDbCommand dbcmd = dbcon.CreateCommand();
+                        if (getMysqlRegion(regionname) == null)
+                        {
+                            sql = "INSERT INTO terraria_regions (Name, Description, Point1, Point2, UserList, ProjectileList, Restricted, RestrictedNPCs) VALUES ('" + regionname + "', '" + regiondesc + "', '" + point1 + "', '" + point2 + "', '" + userList.Trim() + "', '" + projectileList.Trim() + "', " + region.Restricted + ", " + region.RestrictedNPCs + ")";
+                        }
+                        else
+                        {
+                            sql = "UPDATE terraria_regions SET Description = '" + regiondesc + "', Point1 = '" + point1 + "' , Point2 = '" + point2 + "', UserList = '" + userList + "', ProjectileList = '" + projectileList + "', Restricted = "+region.Restricted+", RestrictedNPCs = "+region.RestrictedNPCs+" WHERE Name = '" + regionname + "' ";
+                        }
+                        dbcmd.CommandText = sql;
+                        IDataReader reader = dbcmd.ExecuteReader();
+                        // clean up
+                        reader.Close();
+                        reader = null;
+                        dbcmd.Dispose();
+                        dbcmd = null;
+                        dbcon.Close();
+                        dbcon = null;
 
-                    if (File.Exists(file))
-                        File.Delete(file);
+                        return true;
+                    }
+                    else
+                    {
+                        string file = SaveFolder + Path.DirectorySeparatorChar + region.Name + ".rgn";
 
-                    fs = File.Open(file, FileMode.CreateNew);
-                    string toWrite = region.ToString();
-                    fs.Write(ASCIIEncoding.ASCII.GetBytes(toWrite), 0, toWrite.Length);
-                    fs.Flush();
-                    fs.Close();
-                    return true;
+                        if (File.Exists(file))
+                            File.Delete(file);
+
+                        fs = File.Open(file, FileMode.CreateNew);
+                        string toWrite = region.ToString();
+                        fs.Write(ASCIIEncoding.ASCII.GetBytes(toWrite), 0, toWrite.Length);
+                        fs.Flush();
+                        fs.Close();
+                        return true;
+                    }
                 }
                 else
                     ProgramLog.Error.Log("Region '{0}' was either null or has an issue.",
@@ -64,7 +126,31 @@ namespace Regions.RegionWork
             return false;
         }
 
-        public Region LoadRegion(string location)
+        private string getMysqlRegion(string name)
+        {
+            string rname = null;
+            IDbConnection dbcon;
+            dbcon = new MySqlConnection(connectionString);
+            dbcon.Open();
+            IDbCommand dbcmd = dbcon.CreateCommand();
+            string sql = "SELECT * FROM terraria_regions WHERE Name = '" + name + "'";
+            dbcmd.CommandText = sql;
+            IDataReader reader = dbcmd.ExecuteReader();
+            while (reader.Read())
+            {
+                rname = (string)reader["Name"];
+            }
+            // clean up
+            reader.Close();
+            reader = null;
+            dbcmd.Dispose();
+            dbcmd = null;
+            dbcon.Close();
+            dbcon = null;
+            return rname;
+        }
+
+        private Region LoadRegion(string location)
         {
             Region region = new Region();
 
@@ -161,7 +247,7 @@ namespace Regions.RegionWork
             return region.IsValidRegion() ? region : null;
         }
 
-        public List<Region> LoadRegions(string folder)
+        private List<Region> LoadRegions(string folder)
         {
             List<Region> rgns = new List<Region>();
             foreach (string file in Directory.GetFiles(folder))
@@ -174,6 +260,67 @@ namespace Regions.RegionWork
                 }
             }
             return rgns;
+        }
+
+        private List<Region> LoadMysqlRegions()
+        {
+            List<Region> regions = new List<Region>();
+            Region region;
+            Vector2 Point1;
+            Vector2 Point2;
+            IDbConnection dbcon;
+            dbcon = new MySqlConnection(connectionString);
+            dbcon.Open();
+            IDbCommand dbcmd = dbcon.CreateCommand();
+            string sql = "SELECT * FROM terraria_regions";
+            dbcmd.CommandText = sql;
+            IDataReader reader = dbcmd.ExecuteReader();
+            while (reader.Read())
+            {
+                region = new Region();
+                Point1 = default(Vector2);
+                Point2 = default(Vector2);
+                region.Name = (string)reader["Name"];
+                region.Description = (string)reader["Description"];
+
+                string line = (string)reader["Point1"];
+                string[] xy = line.Split(',');
+                float x, y;
+                if (!(float.TryParse(xy[0], out x) && float.TryParse(xy[1], out y)))
+                    Point1 = default(Vector2);
+                else
+                    Point1 = new Vector2(x, y);
+
+                region.Point1 = Point1;
+
+                string line2 = (string)reader["Point2"];
+                string[] xy2 = line2.Split(',');
+                float x2, y2;
+                if (!(float.TryParse(xy2[0], out x2) && float.TryParse(xy2[1], out y2)))
+                    Point2 = default(Vector2);
+                else
+                    Point2 = new Vector2(x2, y2);
+
+                region.Point2 = Point2;
+                string userlist = (string)reader["UserList"];
+                region.UserList = userlist.Split(' ').ToList<String>();
+                string projlist = (string)reader["ProjectileList"];
+                region.ProjectileList = projlist.Split(' ').ToList<String>();
+                region.Restricted = (bool)reader["Restricted"];
+                region.RestrictedNPCs = (bool)reader["RestrictedNPCs"];
+
+                if(region.IsValidRegion())
+                    regions.Add(region);
+            }
+            // clean up
+            reader.Close();
+            reader = null;
+            dbcmd.Dispose();
+            dbcmd = null;
+            dbcon.Close();
+            dbcon = null;
+
+            return regions;
         }
 
         public bool ContainsRegion(string name)

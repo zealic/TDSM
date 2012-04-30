@@ -49,6 +49,9 @@
     <CodeAnalysisFailOnMissingRules>false</CodeAnalysisFailOnMissingRules>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="MySql.Data">
+      <HintPath>..\..\..\..\..\..\Desktop\tdsm-test-server\Plugins\Libs\MySql.Data.dll</HintPath>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -56,6 +59,10 @@
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Data" />
     <Reference Include="System.Xml" />
+    <Reference Include="Terraria_Server, Version=1.0.0.0, Culture=neutral, processorArchitecture=x86">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\Terraria_Server\bin\Debug\Terraria_Server.exe</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Commands.cs" />
@@ -65,12 +72,6 @@
     <Compile Include="RegionWork\Region.cs" />
     <Compile Include="RegionWork\RegionManager.cs" />
     <Compile Include="RegionWork\Selection.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Terraria_Server\Terraria_Server.csproj">
-      <Project>{6B42E70C-75CD-410B-9D4A-3EA75B6F5176}</Project>
-      <Name>Terraria_Server</Name>
-    </ProjectReference>
   </ItemGroup>
   <ItemGroup>
     <Content Include="Changes.txt" />

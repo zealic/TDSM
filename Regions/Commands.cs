@@ -277,6 +277,11 @@ namespace Regions
                     regionManager.Regions[i].Description,
                         regionManager.Regions[i].Point1.X, regionManager.Regions[i].Point1.Y);
             }
+
+            if(regionManager.Regions.Count==0)
+            {
+                sender.Message(255, "No regions.");
+            }
         }
 
         public void AddUser(ISender sender, ArgumentList args)
