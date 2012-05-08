@@ -13,17 +13,13 @@ namespace Regions.RegionWork
 {
     public class RegionManager
     {
-        public List<Region> Regions { get; set; }
+        public List<Region> RegionList { get; set; }
         private string SaveFolder { get; set; }
-        private bool mysqlenabled;
-        private string connectionString;
 
-        public RegionManager(string saveFolder, bool mysqlenabled, string connectionString)
+        public RegionManager(string saveFolder)
         {
             SaveFolder = saveFolder;
-            this.mysqlenabled = mysqlenabled;
-			Regions = new List<Region>();
-            this.connectionString = connectionString;
+			RegionList = new List<Region>();
 
             if (!Directory.Exists(saveFolder))
                 Directory.CreateDirectory(saveFolder);
@@ -32,15 +28,15 @@ namespace Regions.RegionWork
         public void LoadRegions()
         {
             ProgramLog.Plugin.Log("Loading Regions.");
-            if (mysqlenabled)
+            if (Regions.instance.mysqlenabled)
             {
-                Regions = LoadMysqlRegions();
+                RegionList = LoadMysqlRegions();
             }
             else
             {
-                Regions = LoadRegions(SaveFolder);
+                RegionList = LoadRegions(SaveFolder);
             }
-            ProgramLog.Plugin.Log("Loaded {0} Regions.", Regions.Count);
+            ProgramLog.Plugin.Log("Loaded {0} Regions.", RegionList.Count);
         }
 
         public int import()
@@ -62,7 +58,7 @@ namespace Regions.RegionWork
             {
                 if (region != null && region.IsValidRegion())
                 {
-                    if (mysqlenabled)
+                    if (Regions.instance.mysqlenabled)
                     {
                         string regionname = region.Name.Replace("'", @"\'");
                         string regiondesc = region.Description.Replace("'", @"\'");	
@@ -72,7 +68,7 @@ namespace Regions.RegionWork
                         string projectileList = region.ProjectileListToString().Replace("'", @"\'");	
                         string sql = "";
                         IDbConnection dbcon;
-                        dbcon = new MySqlConnection(connectionString);
+                        dbcon = new MySqlConnection(Regions.instance.connectionString);
                         dbcon.Open();
                         IDbCommand dbcmd = dbcon.CreateCommand();
                         if (getMysqlRegion(regionname) == null)
@@ -130,7 +126,7 @@ namespace Regions.RegionWork
         {
             string rname = null;
             IDbConnection dbcon;
-            dbcon = new MySqlConnection(connectionString);
+            dbcon = new MySqlConnection(Regions.instance.connectionString);
             dbcon.Open();
             IDbCommand dbcmd = dbcon.CreateCommand();
             string sql = "SELECT * FROM terraria_regions WHERE Name = '" + name + "'";
@@ -269,7 +265,7 @@ namespace Regions.RegionWork
             Vector2 Point1;
             Vector2 Point2;
             IDbConnection dbcon;
-            dbcon = new MySqlConnection(connectionString);
+            dbcon = new MySqlConnection(Regions.instance.connectionString);
             dbcon.Open();
             IDbCommand dbcmd = dbcon.CreateCommand();
             string sql = "SELECT * FROM terraria_regions";
@@ -325,7 +321,7 @@ namespace Regions.RegionWork
 
         public bool ContainsRegion(string name)
         {
-            foreach (Region rgn in Regions)
+            foreach (Region rgn in RegionList)
             {
                 if (rgn.Name.ToLower().Equals(name.ToLower()))
                     return true;
@@ -336,7 +332,7 @@ namespace Regions.RegionWork
 
         public Region GetRegion(string name)
         {
-            foreach (Region rgn in Regions)
+            foreach (Region rgn in RegionList)
             {
                 if (rgn.Name.ToLower().Equals(name.ToLower()))
                     return rgn;

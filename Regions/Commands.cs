@@ -158,6 +158,11 @@ namespace Regions
 
                         RegionHere(sender, args);
                     }
+                    else if (args.TryPop("reload"))
+                    {
+                        Regions.instance.regionManager.LoadRegions();
+                        sender.sendMessage("Regions reloaded.", 255);
+                    }
                 }
                 catch (CommandError e)
                 {
@@ -191,7 +196,7 @@ namespace Regions
                 }
             }
             else
-                sender.sendMessage("Region Commands: select, create, user, list.", 255);
+                sender.sendMessage("Region Commands: select, create, user, list, reload.", 255);
             /* Meh [END] */
         }
 
@@ -246,7 +251,7 @@ namespace Regions
 
                         if (rgn.IsValidRegion())
                         {
-                            regionManager.Regions.Add(rgn);
+                            regionManager.RegionList.Add(rgn);
                             if (regionManager.SaveRegion(rgn))
                                 player.sendMessage("Region '" + Name + "' was successfully created.", ChatColor.Green);
                             else
@@ -271,14 +276,14 @@ namespace Regions
 
         public void List(ISender sender, ArgumentList args)
         {
-            for (int i = 0; i < regionManager.Regions.Count; i++)
+            for (int i = 0; i < regionManager.RegionList.Count; i++)
             {
-                sender.Message(255, "Slot {0} : {1} [ {2} ] ({3},{4})", i, regionManager.Regions[i].Name,
-                    regionManager.Regions[i].Description,
-                        regionManager.Regions[i].Point1.X, regionManager.Regions[i].Point1.Y);
+                sender.Message(255, "Slot {0} : {1} [ {2} ] ({3},{4})", i, regionManager.RegionList[i].Name,
+                    regionManager.RegionList[i].Description,
+                        regionManager.RegionList[i].Point1.X, regionManager.RegionList[i].Point1.Y);
             }
 
-            if(regionManager.Regions.Count==0)
+            if(regionManager.RegionList.Count==0)
             {
                 sender.Message(255, "No regions.");
             }
@@ -309,11 +314,11 @@ namespace Regions
                 }
 
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -321,11 +326,11 @@ namespace Regions
                 //[TODO] TEST ME
                 if (region == null && regionName.Length > 0)
                 {
-                    for (int i = 0; i < regionManager.Regions.Count; i++)
+                    for (int i = 0; i < regionManager.RegionList.Count; i++)
                     {
-                        if (regionManager.Regions[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
+                        if (regionManager.RegionList[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
                         {
-                            region = regionManager.Regions[i];
+                            region = regionManager.RegionList[i];
                             break;
                         }
                     }
@@ -384,11 +389,11 @@ namespace Regions
                 }
 
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -404,7 +409,7 @@ namespace Regions
                         {
                             if (region.UserList.Contains(inflatee))
                             {
-                                region.UserList.Add(inflatee);
+                                region.UserList.Remove(inflatee);
                                 usersRemoved++;
                             }
                         }
@@ -414,7 +419,7 @@ namespace Regions
                 {
                     if (regionManager.SaveRegion(region))
                     {
-                        sender.sendMessage(String.Format("{0} users were added to {1}", usersRemoved, region.Name),
+                        sender.sendMessage(String.Format("{0} users were removed from {1}", usersRemoved, region.Name),
                         255, 0, 255);
                     }
                     else
@@ -436,11 +441,11 @@ namespace Regions
                 args.TryParseTwo<String, String>("-proj", out projectiles, "-region", out regionName))
             {
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -448,11 +453,11 @@ namespace Regions
                 //[TODO] TEST ME
                 if (region == null && regionName.Length > 0)
                 {
-                    for (int i = 0; i < regionManager.Regions.Count; i++)
+                    for (int i = 0; i < regionManager.RegionList.Count; i++)
                     {
-                        if (regionManager.Regions[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
+                        if (regionManager.RegionList[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
                         {
-                            region = regionManager.Regions[i];
+                            region = regionManager.RegionList[i];
                             break;
                         }
                     }
@@ -497,11 +502,11 @@ namespace Regions
             if (args.TryParseTwo<String, Int32>("-proj", out projectiles, "-slot", out Slot))
             {
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -550,11 +555,11 @@ namespace Regions
                 args.TryParseOne<String>("-region", out regionName))
             {
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -562,11 +567,11 @@ namespace Regions
                 //[TODO] TEST ME
                 if (region == null && regionName.Length > 0)
                 {
-                    for (int i = 0; i < regionManager.Regions.Count; i++)
+                    for (int i = 0; i < regionManager.RegionList.Count; i++)
                     {
-                        if (regionManager.Regions[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
+                        if (regionManager.RegionList[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
                         {
-                            region = regionManager.Regions[i];
+                            region = regionManager.RegionList[i];
                             break;
                         }
                     }
@@ -596,11 +601,11 @@ namespace Regions
                 args.TryParseOne<String>("-region", out regionName))
             {
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -608,11 +613,11 @@ namespace Regions
                 //[TODO] TEST ME
                 if (region == null && regionName.Length > 0)
                 {
-                    for (int i = 0; i < regionManager.Regions.Count; i++)
+                    for (int i = 0; i < regionManager.RegionList.Count; i++)
                     {
-                        if (regionManager.Regions[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
+                        if (regionManager.RegionList[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
                         {
-                            region = regionManager.Regions[i];
+                            region = regionManager.RegionList[i];
                             break;
                         }
                     }
@@ -642,11 +647,11 @@ namespace Regions
                 args.TryParseOne<String>("-region", out regionName))
             {
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -654,11 +659,11 @@ namespace Regions
                 //[TODO] TEST ME
                 if (region == null && regionName.Length > 0)
                 {
-                    for (int i = 0; i < regionManager.Regions.Count; i++)
+                    for (int i = 0; i < regionManager.RegionList.Count; i++)
                     {
-                        if (regionManager.Regions[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
+                        if (regionManager.RegionList[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
                         {
-                            region = regionManager.Regions[i];
+                            region = regionManager.RegionList[i];
                             break;
                         }
                     }
@@ -689,11 +694,11 @@ namespace Regions
                 args.TryParseOne<String>("-region", out regionName))
             {
                 Region region = null;
-                for (int i = 0; i < regionManager.Regions.Count; i++)
+                for (int i = 0; i < regionManager.RegionList.Count; i++)
                 {
                     if (Slot == i)
                     {
-                        region = regionManager.Regions[i];
+                        region = regionManager.RegionList[i];
                         break;
                     }
                 }
@@ -701,11 +706,11 @@ namespace Regions
                 //[TODO] TEST ME
                 if (region == null && regionName.Length > 0)
                 {
-                    for (int i = 0; i < regionManager.Regions.Count; i++)
+                    for (int i = 0; i < regionManager.RegionList.Count; i++)
                     {
-                        if (regionManager.Regions[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
+                        if (regionManager.RegionList[i].Name.Trim().ToLower().Replace(" ", "").Equals(regionName.ToLower()))
                         {
-                            region = regionManager.Regions[i];
+                            region = regionManager.RegionList[i];
                             break;
                         }
                     }
@@ -759,7 +764,7 @@ namespace Regions
 
             if (rgn.IsValidRegion())
             {
-                regionManager.Regions.Add(rgn);
+                regionManager.RegionList.Add(rgn);
                 if (regionManager.SaveRegion(rgn))
                     sender.sendMessage("Region '" + rgnName + "' was successfully created.");
                 else
@@ -777,7 +782,7 @@ namespace Regions
             {
                 var player = sender as Player;
 
-                foreach (Region region in regionManager.Regions)
+                foreach (Region region in regionManager.RegionList)
                 {
                     if (region.HasPoint(player.Position / 16))
                         player.sendMessage("You are in Region '{0}'", ChatColor.Purple);

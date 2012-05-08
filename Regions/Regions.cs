@@ -22,6 +22,7 @@ namespace Regions
     {
         public static int SelectorItem = 0;
         public static bool UsingPermissions = false;
+        public static Regions instance;
 
         public Regions()
         {
@@ -53,7 +54,7 @@ namespace Regions
 
         PropertiesFile mysql;
 
-        bool mysqlenabled
+        public bool mysqlenabled
         {
             get { return mysql.getValue("mysql-enabled", false); }
         }
@@ -83,7 +84,7 @@ namespace Regions
             get { return mysql.getValue("regionfiles-imported", false); }
         }
 
-        string connectionString
+        public string connectionString
         {
             get { return "Server=" + mysqlserver + ";" + "Database=" + mysqldatabase + ";" + "User ID=" + mysqluser + ";" + "Password=" + mysqlpassword + ";" + "Pooling=false"; }
         }
@@ -168,7 +169,7 @@ namespace Regions
             }
             #endregion
 
-            regionManager = new RegionManager(DataFolder, mysqlenabled, connectionString);
+            regionManager = new RegionManager(DataFolder);
             selection = new Selection();
 
             commands = new Commands();
@@ -212,6 +213,7 @@ namespace Regions
 
         protected override void Enabled()
         {
+            instance = this;
             ProgramLog.Plugin.Log("Regions for TDSM #{0} enabled.", base.TDSMBuild);
         }
 
@@ -291,7 +293,7 @@ namespace Regions
                     return;
                 }
 
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(Position))
                     {
@@ -310,7 +312,7 @@ namespace Regions
             {
                 Vector2 Position = new Vector2(args.X, args.Y);
 
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(Position))
                     {
@@ -329,7 +331,7 @@ namespace Regions
             {
                 Vector2 Position = new Vector2(args.X, args.Y);
 
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(Position / 16))
                     {
@@ -351,7 +353,7 @@ namespace Regions
             [Hook(HookOrder.NORMAL)]
             void OnDoorStateChange(ref HookContext ctx, ref HookArgs.DoorStateChanged args)
             {
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(new Vector2(args.X, args.Y)))
                     {
@@ -380,7 +382,7 @@ namespace Regions
             [Hook(HookOrder.NORMAL)]
             void OnChestBreak(ref HookContext ctx, ref HookArgs.ChestBreakReceived args)
             {
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(new Vector2(args.X, args.Y)))
                     {
@@ -400,7 +402,7 @@ namespace Regions
             [Hook(HookOrder.NORMAL)]
             void OnChestOpen(ref HookContext ctx, ref HookArgs.ChestOpenReceived args)
             {
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(new Vector2(args.X, args.Y)))
                     {
@@ -420,7 +422,7 @@ namespace Regions
             [Hook(HookOrder.NORMAL)]
             void OnSignEdit(ref HookContext ctx, ref HookArgs.SignTextSet args)
             {
-                foreach (Region rgn in regionManager.Regions)
+                foreach (Region rgn in regionManager.RegionList)
                 {
                     if (rgn.HasPoint(new Vector2(args.X, args.Y)))
                     {
